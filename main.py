@@ -6,7 +6,6 @@ from discord.ext import commands
 
 import os
 from src.response import random_response, hook
-import time
 from webserver import keep_alive
 
 load_dotenv()
@@ -39,14 +38,10 @@ async def on_ready():
 
 
 @bot.tree.command(
-    name="ping", description="Returns pings of response (nanosecond accuracy)")
+    name="ping", description="Returns the bot's gateway latency")
 async def ping(interaction: discord.Interaction):
-    start_time = time.perf_counter_ns()
-    await interaction.response.send_message("pong!")
-    end_time = time.perf_counter_ns()
-    ping_ms = round(((end_time - start_time) / 1000000), 2)
-    await interaction.followup.send(f"{ping_ms}ms")
-
+    latency_ms = round(bot.latency * 1000, 2)
+    await interaction.response.send_message(f"pong! ({latency_ms} ms)")
 
 keep_alive()
 bot.run((os.getenv("DISCORD_SECRET")))
