@@ -1,0 +1,5 @@
+black
+discord.py
+flask
+google-genai
+python-dotenv
