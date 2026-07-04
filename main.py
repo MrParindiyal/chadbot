@@ -1,10 +1,12 @@
 from dotenv import load_dotenv
 
+import asyncio
 import discord
 from discord import app_commands
 from discord.ext import commands
-from src.helpers import *
+from gemini import generative_response
 import os
+from src.helpers import *
 from src.response import random_response, hook
 from webserver import keep_alive
 
@@ -215,6 +217,14 @@ async def clear(
             ephemeral=True,
         )
 
+
+@bot.tree.command(name="ask", description="Ask questions to the AI underlords")
+@app_commands.describe(text="Type your question here")
+async def ask(interaction: discord.Interaction, text: app_commands.Range[str, 1, 500]):
+    await interaction.response.defer()
+    # check_limits(interaction.user.id)
+    response = await asyncio.to_thread(generative_response, str(text)) #
+    await interaction.followup.send(response)
 
 keep_alive()
 bot.run((os.getenv("DISCORD_SECRET")))
