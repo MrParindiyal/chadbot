@@ -221,10 +221,14 @@ async def clear(
 @bot.tree.command(name="ask", description="Ask questions to the AI underlords")
 @app_commands.describe(text="Type your question here")
 async def ask(interaction: discord.Interaction, text: app_commands.Range[str, 1, 500]):
-    await interaction.response.defer()
+    await interaction.response.defer(thinking=True)
     # check_limits(interaction.user.id)
-    response = await asyncio.to_thread(generative_response, str(text)) #
-    await interaction.followup.send(response)
+    try:
+        response = await asyncio.to_thread(generative_response, str(text))
+        await interaction.edit_original_response(content=response)
+    except Exception as e:
+        await interaction.edit_original_response(f"Oops! An error was caught : {e}")
+
 
 keep_alive()
 bot.run((os.getenv("DISCORD_SECRET")))
