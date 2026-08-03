@@ -3,3 +3,4 @@ __pycache__/
 todo.md
 actual.env
 .venv
+.vscode

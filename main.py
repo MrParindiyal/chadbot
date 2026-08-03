@@ -5,7 +5,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
-from gemini import generative_response
+from src.gemini import generative_response
 import os
 from src.helpers import *
 from src.response import random_response, hook
@@ -237,13 +237,12 @@ async def ask(interaction: discord.Interaction, text: app_commands.Range[str, 1,
         await interaction.edit_original_response(f"Oops! An error was caught : {e}")
 
 
-
 @bot.tree.command(name="wordy", description="Start a game of Wordle")
 async def wordle(interaction: discord.Interaction):
     if bot.wordle_active:
         await interaction.response.send_message(
-            ":x: A Wordle game is already ongoing! Please wait for it to finish or end it.", 
-            ephemeral=True
+            ":x: A Wordle game is already ongoing! Please wait for it to finish or end it.",
+            ephemeral=True,
         )
         return
 
@@ -256,7 +255,7 @@ async def wordle(interaction: discord.Interaction):
 
     initial_embed = create_wordle_embed([], target_word)
     view = WordleEndButton(bot, interaction.user.id)
-    
+
     await interaction.response.send_message(embed=initial_embed, view=view)
     bot.wordle_message = await interaction.original_response()
 
@@ -269,17 +268,17 @@ async def on_message(message: discord.Message):
 
     if bot.wordle_active and message.author.id == bot.wordle_author:
         content = message.content.strip()
-        
+
         if content.isalpha() and not content.startswith("!"):
             if len(content) != 5:
                 try:
                     await message.delete()
                 except discord.HTTPException:
                     pass
-                
+
                 await message.channel.send(
                     f"{message.author.mention} :warning: Game is ongoing. This word does not qualify as a guess (must be exactly 5 letters).",
-                    delete_after=5
+                    delete_after=5,
                 )
                 await bot.process_commands(message)
                 return
@@ -291,25 +290,33 @@ async def on_message(message: discord.Message):
                 pass
 
             bot.wordle_guesses.append(guess)
-            
-            is_winner = (guess == bot.wordle_word)
+
+            is_winner = guess == bot.wordle_word
             is_game_over = is_winner or (len(bot.wordle_guesses) >= 6)
 
-            updated_embed = create_wordle_embed(bot.wordle_guesses, bot.wordle_word, game_over=is_game_over)
-            
+            updated_embed = create_wordle_embed(
+                bot.wordle_guesses, bot.wordle_word, game_over=is_game_over
+            )
+
             view = discord.ui.View()
             if is_winner:
                 updated_embed.color = discord.Color.green()
-                updated_embed.set_footer(text=f":tada: Won by {message.author.display_name}! The word was {bot.wordle_word.upper()}.")
+                updated_embed.set_footer(
+                    text=f":tada: Won by {message.author.display_name}! The word was {bot.wordle_word.upper()}."
+                )
 
             elif len(bot.wordle_guesses) >= 6:
                 updated_embed.color = discord.Color.red()
-                updated_embed.set_footer(text=f":skull: Game Over! The word was {bot.wordle_word.upper()}.")
-                
+                updated_embed.set_footer(
+                    text=f":skull: Game Over! The word was {bot.wordle_word.upper()}."
+                )
+
             else:
                 view = WordleEndButton(bot, bot.wordle_author)
 
-            await bot.wordle_message.edit(embed=updated_embed, view=view if not is_game_over else None)
+            await bot.wordle_message.edit(
+                embed=updated_embed, view=view if not is_game_over else None
+            )
 
             if is_game_over:
                 bot.wordle_active = False
