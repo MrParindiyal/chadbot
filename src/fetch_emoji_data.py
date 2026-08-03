@@ -7,6 +7,7 @@ load_dotenv()
 
 bot = commands.Bot(command_prefix="!", intents=discord.Intents.default())
 
+
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user.name}")
@@ -19,4 +20,6 @@ async def on_ready():
         print("Successfully parsed app emojis!")
     else:
         print("No App Emojis found!")
+
+
 bot.run(os.getenv("DISCORD_SECRET"))

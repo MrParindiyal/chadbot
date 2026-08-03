@@ -1,5 +1,6 @@
 import discord
 import random
+from src.config import *
 
 try:
     with open("./data/approved.txt", "r") as f:
@@ -91,12 +92,12 @@ def create_wordle_embed(guesses, target_word, game_over=False):
         row_str = ""
         for i, letter in enumerate(guess):
             if letter == target_word[i]:
-                row_str += ":green_square: "
+                row_str += f"{EMOJIS[f"green_{letter.upper()}"]} "
             elif letter in target_word:
-                row_str += ":yellow_square: "
+                row_str += f"{EMOJIS[f"yellow_{letter.upper()}"]} "
             else:
-                row_str += ":black_large_square: "
-        board_text += f"{row_str} (`{guess.upper()}`)\n"
+                row_str += f"{EMOJIS[f"grey_{letter.upper()}"]} "
+        board_text += f"{row_str}\n"
 
     remaining_rows = 6 - len(guesses)
     for _ in range(remaining_rows):
@@ -115,5 +116,4 @@ def create_wordle_embed(guesses, target_word, game_over=False):
 
 
 def pick_random_word():
-    return "words"
-    # return random.choice(words)
+    return random.choice(WORDS)

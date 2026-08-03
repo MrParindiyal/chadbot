@@ -302,13 +302,13 @@ async def on_message(message: discord.Message):
             if is_winner:
                 updated_embed.color = discord.Color.green()
                 updated_embed.set_footer(
-                    text=f":tada: Won by {message.author.display_name}! The word was {bot.wordle_word.upper()}."
+                    text=f"🎉 Won by {message.author.display_name}! The word was {bot.wordle_word.upper()}."
                 )
 
             elif len(bot.wordle_guesses) >= 6:
                 updated_embed.color = discord.Color.red()
                 updated_embed.set_footer(
-                    text=f":skull: Game Over! The word was {bot.wordle_word.upper()}."
+                    text=f"💀 Game Over! The word was {bot.wordle_word.upper()}."
                 )
 
             else:
