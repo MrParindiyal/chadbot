@@ -9,7 +9,6 @@ from src.gemini import generative_response
 import os
 from src.helpers import *
 from src.response import random_response, hook
-from webserver import keep_alive
 
 load_dotenv()
 
@@ -328,5 +327,4 @@ async def on_message(message: discord.Message):
     await bot.process_commands(message)
 
 
-keep_alive()
 bot.run((os.getenv("DISCORD_SECRET")))
