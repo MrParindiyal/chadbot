@@ -38,27 +38,27 @@ def remove_whitelisted_user(userid: str) -> bool:
     return True
 
 
-class WordleEndButton(discord.ui.View):
+class WordyEndButton(discord.ui.View):
     def __init__(self, bot_instance, player_id):
         super().__init__(timeout=None)
         self.bot = bot_instance
         self.interacting_author = player_id
 
     @discord.ui.button(
-        label="End Game", style=discord.ButtonStyle.danger, custom_id="end_wordle_game"
+        label="End Game", style=discord.ButtonStyle.danger, custom_id="end_wordy_game"
     )
     async def end_game_callback(
         self, interaction: discord.Interaction, button: discord.ui.Button
     ):
-        if not self.bot.wordle_active:
+        if not self.bot.wordy_active:
             await interaction.response.send_message(
-                "There is no active Wordle game running right now.", ephemeral=True
+                "There is no active wordy game running right now.", ephemeral=True
             )
             return
 
         if interaction.user.id == self.interacting_author:
-            embed = create_wordle_embed(
-                self.bot.wordle_guesses, self.bot.wordle_word, game_over=True
+            embed = create_wordy_embed(
+                self.bot.wordy_guesses, self.bot.wordy_word, game_over=True
             )
             embed.color = discord.Color.red()
         else:
@@ -73,16 +73,16 @@ class WordleEndButton(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=self)
 
         # Reset bot state
-        self.bot.wordle_active = False
-        self.bot.wordle_word = ""
-        self.bot.wordle_guesses = []
-        self.bot.wordle_message = None
-        self.bot.wordle_author = None
+        self.bot.wordy_active = False
+        self.bot.wordy_word = ""
+        self.bot.wordy_guesses = []
+        self.bot.wordy_message = None
+        self.bot.wordy_author = None
 
 
-def create_wordle_embed(guesses, target_word, game_over=False):
+def create_wordy_embed(guesses, target_word, game_over=False):
     embed = discord.Embed(
-        title=":green_square: Discord Wordle :yellow_square:",
+        title=":green_square: Discord Wordy :yellow_square:",
         description="Guess the 5-letter word! Type your guesses in chat.",
         color=discord.Color.blurple(),
     )

@@ -30,11 +30,11 @@ class CustomBot(commands.Bot):
             status=discord.Status.online,
         )
 
-        self.wordle_active = False
-        self.wordle_word = ""
-        self.wordle_guesses = []
-        self.wordle_message = None
-        self.wordle_author = None
+        self.wordy_active = False
+        self.wordy_word = ""
+        self.wordy_guesses = []
+        self.wordy_message = None
+        self.wordy_author = None
 
     async def setup_hook(self):
         await self.tree.sync()
@@ -237,27 +237,27 @@ async def ask(interaction: discord.Interaction, text: app_commands.Range[str, 1,
         await interaction.edit_original_response(f"Oops! An error was caught : {e}")
 
 
-@bot.tree.command(name="wordy", description="Start a game of Wordle")
-async def wordle(interaction: discord.Interaction):
-    if bot.wordle_active:
+@bot.tree.command(name="wordy", description="Start a game of Wordy")
+async def wordy(interaction: discord.Interaction):
+    if bot.wordy_active:
         await interaction.response.send_message(
-            ":x: A Wordle game is already ongoing! Please wait for it to finish or end it.",
+            ":x: A Wordy game is already ongoing! Please wait for it to finish or end it.",
             ephemeral=True,
         )
         return
 
     target_word = pick_random_word()
 
-    bot.wordle_active = True
-    bot.wordle_word = target_word
-    bot.wordle_guesses = []
-    bot.wordle_author = interaction.user.id
+    bot.wordy_active = True
+    bot.wordy_word = target_word
+    bot.wordy_guesses = []
+    bot.wordy_author = interaction.user.id
 
-    initial_embed = create_wordle_embed([], target_word)
-    view = WordleEndButton(bot, interaction.user.id)
+    initial_embed = create_wordy_embed([], target_word)
+    view = WordyEndButton(bot, interaction.user.id)
 
     await interaction.response.send_message(embed=initial_embed, view=view)
-    bot.wordle_message = await interaction.original_response()
+    bot.wordy_message = await interaction.original_response()
 
 
 @bot.event
@@ -266,7 +266,7 @@ async def on_message(message: discord.Message):
         await bot.process_commands(message)
         return
 
-    if bot.wordle_active and message.author.id == bot.wordle_author:
+    if bot.wordy_active and message.author.id == bot.wordy_author:
         content = message.content.strip()
 
         if content.isalpha() and not content.startswith("!"):
@@ -289,41 +289,41 @@ async def on_message(message: discord.Message):
             except discord.Forbidden:
                 pass
 
-            bot.wordle_guesses.append(guess)
+            bot.wordy_guesses.append(guess)
 
-            is_winner = guess == bot.wordle_word
-            is_game_over = is_winner or (len(bot.wordle_guesses) >= 6)
+            is_winner = guess == bot.wordy_word
+            is_game_over = is_winner or (len(bot.wordy_guesses) >= 6)
 
-            updated_embed = create_wordle_embed(
-                bot.wordle_guesses, bot.wordle_word, game_over=is_game_over
+            updated_embed = create_wordy_embed(
+                bot.wordy_guesses, bot.wordy_word, game_over=is_game_over
             )
 
             view = discord.ui.View()
             if is_winner:
                 updated_embed.color = discord.Color.green()
                 updated_embed.set_footer(
-                    text=f"🎉 Won by {message.author.display_name}! The word was {bot.wordle_word.upper()}."
+                    text=f"🎉 Won by {message.author.display_name}! The word was {bot.wordy_word.upper()}."
                 )
 
-            elif len(bot.wordle_guesses) >= 6:
+            elif len(bot.wordy_guesses) >= 6:
                 updated_embed.color = discord.Color.red()
                 updated_embed.set_footer(
-                    text=f"💀 Game Over! The word was {bot.wordle_word.upper()}."
+                    text=f"💀 Game Over! The word was {bot.wordy_word.upper()}."
                 )
 
             else:
-                view = WordleEndButton(bot, bot.wordle_author)
+                view = WordyEndButton(bot, bot.wordy_author)
 
-            await bot.wordle_message.edit(
+            await bot.wordy_message.edit(
                 embed=updated_embed, view=view if not is_game_over else None
             )
 
             if is_game_over:
-                bot.wordle_active = False
-                bot.wordle_guesses = []
-                bot.wordle_word = ""
-                bot.wordle_author = None
-                bot.wordle_message = None
+                bot.wordy_active = False
+                bot.wordy_guesses = []
+                bot.wordy_word = ""
+                bot.wordy_author = None
+                bot.wordy_message = None
 
     await bot.process_commands(message)
 
