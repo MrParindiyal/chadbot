@@ -1,7 +1,12 @@
 from PIL import Image, ImageDraw, ImageFont
 
 dim = 128
-colors = {"green": (4, 110, 0), "yellow": (138, 131, 0), "grey": (48, 48, 48)}
+colors = {
+    "green": (4, 110, 0),
+    "yellow": (138, 131, 0),
+    "grey": (48, 48, 48),
+    "unexplored": (138, 138, 138),
+}
 
 for color in colors:
     for char_idx in range(26):

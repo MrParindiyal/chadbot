@@ -2,4 +2,5 @@ black
 discord.py
 flask
 google-genai
+pillow
 python-dotenv
