@@ -284,8 +284,15 @@ async def on_message(message: discord.Message):
                 return
 
             guess = content.lower()
+            if guess not in ALLOWED_GUESSES:
+                await message.delete(delay=3)
+                await message.channel.send(
+                    f"{message.author.mention} :warning: Not a valid guess.",
+                    delete_after=2.5,
+                )
+                return
             try:
-                await message.delete()
+                await message.delete(delay=1.8)
             except discord.Forbidden:
                 pass
 
