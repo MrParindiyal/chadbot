@@ -58,7 +58,11 @@ class WordyEndButton(discord.ui.View):
 
         if interaction.user.id == self.interacting_author:
             embed = create_wordy_embed(
-                self.bot.wordy_guesses, self.bot.wordy_word, game_over=True
+                self.bot.wordy_guesses,
+                self.bot.wordy_word,
+                self.bot.explored,
+                interaction.user,
+                game_over=True,
             )
             embed.color = discord.Color.red()
         else:
@@ -80,29 +84,57 @@ class WordyEndButton(discord.ui.View):
         self.bot.wordy_author = None
 
 
-def create_wordy_embed(guesses, target_word, game_over=False):
+def return_formatted_row(row_num: int, keyboard: dict) -> str:
+    row = f"row{row_num}"
+    out = ""
+
+    for char in keyboard[row]:
+        out += f"{EMOJIS[f"{keyboard[row][char]}"]} "
+    return out
+
+
+def create_wordy_embed(guesses, target_word, explored, player, game_over=False):
     embed = discord.Embed(
         title=":green_square: Discord Wordy :yellow_square:",
-        description="Guess the 5-letter word! Type your guesses in chat.",
+        description="Guess the 5-letter word! Type your guesses in chat.\n\n\n",
         color=discord.Color.blurple(),
     )
-
+    embed.set_thumbnail(url=player.display_avatar.url)
     board_text = ""
     for guess in guesses:
         row_str = ""
         for i, letter in enumerate(guess):
             if letter == target_word[i]:
                 row_str += f"{EMOJIS[f"green_{letter.upper()}"]} "
+                explored[explored["track"][letter.upper()]][
+                    letter.upper()
+                ] = f"green_{letter.upper()}"
             elif letter in target_word:
                 row_str += f"{EMOJIS[f"yellow_{letter.upper()}"]} "
+                explored[explored["track"][letter.upper()]][
+                    letter.upper()
+                ] = f"yellow_{letter.upper()}"
             else:
                 row_str += f"{EMOJIS[f"grey_{letter.upper()}"]} "
+                explored[explored["track"][letter.upper()]][
+                    letter.upper()
+                ] = f"grey_{letter.upper()}"
+
         board_text += f"{row_str}\n"
 
     remaining_rows = 6 - len(guesses)
     for _ in range(remaining_rows):
         board_text += ":black_large_square: :black_large_square: :black_large_square: :black_large_square: :black_large_square:\n"
+    content = ""
+    for i, key in enumerate(explored):
+        if key != "track":
+            content += " ‎ " * i * 4
+            content += return_formatted_row(i + 1, explored)
+            content += "\n"
+        else:
+            content += "\n\n"
 
+    embed.add_field(name="Exploration status", value=content, inline=False)
     embed.add_field(name="Game Board", value=board_text, inline=False)
 
     if game_over:

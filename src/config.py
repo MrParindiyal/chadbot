@@ -113,6 +113,72 @@ EMOJIS = {
 
 
 """
+Keyboard to track explored status of letters.
+"""
+KEYBOARD = {
+    "row1": {
+        "Q": "unexplored_Q",
+        "W": "unexplored_W",
+        "E": "unexplored_E",
+        "R": "unexplored_R",
+        "T": "unexplored_T",
+        "Y": "unexplored_Y",
+        "U": "unexplored_U",
+        "I": "unexplored_I",
+        "O": "unexplored_O",
+        "P": "unexplored_P",
+    },
+    "row2": {
+        "A": "unexplored_A",
+        "S": "unexplored_S",
+        "D": "unexplored_D",
+        "F": "unexplored_F",
+        "G": "unexplored_G",
+        "H": "unexplored_H",
+        "J": "unexplored_J",
+        "K": "unexplored_K",
+        "L": "unexplored_L",
+    },
+    "row3": {
+        "Z": "unexplored_Z",
+        "X": "unexplored_X",
+        "C": "unexplored_C",
+        "V": "unexplored_V",
+        "B": "unexplored_B",
+        "N": "unexplored_N",
+        "M": "unexplored_M",
+    },
+    "track": {
+        "Q": "row1",
+        "W": "row1",
+        "E": "row1",
+        "R": "row1",
+        "T": "row1",
+        "Y": "row1",
+        "U": "row1",
+        "I": "row1",
+        "O": "row1",
+        "P": "row1",
+        "A": "row2",
+        "S": "row2",
+        "D": "row2",
+        "F": "row2",
+        "G": "row2",
+        "H": "row2",
+        "J": "row2",
+        "K": "row2",
+        "L": "row2",
+        "Z": "row3",
+        "X": "row3",
+        "C": "row3",
+        "V": "row3",
+        "B": "row3",
+        "N": "row3",
+        "M": "row3",
+    },
+}
+
+"""
 Tuple of words that can be chosen as a solution.
 """
 WORDS = (
