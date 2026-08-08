@@ -1,6 +1,6 @@
-from dotenv import load_dotenv
-
 import asyncio
+import copy
+from dotenv import load_dotenv
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -34,6 +34,7 @@ class CustomBot(commands.Bot):
         self.wordy_guesses = []
         self.wordy_message = None
         self.wordy_author = None
+        self.explored = None
 
     async def setup_hook(self):
         await self.tree.sync()
@@ -251,8 +252,9 @@ async def wordy(interaction: discord.Interaction):
     bot.wordy_word = target_word
     bot.wordy_guesses = []
     bot.wordy_author = interaction.user.id
+    bot.explored = copy.deepcopy(KEYBOARD)
 
-    initial_embed = create_wordy_embed([], target_word)
+    initial_embed = create_wordy_embed([], target_word, bot.explored, interaction.user)
     view = WordyEndButton(bot, interaction.user.id)
 
     await interaction.response.send_message(embed=initial_embed, view=view)
@@ -283,8 +285,15 @@ async def on_message(message: discord.Message):
                 return
 
             guess = content.lower()
+            if guess not in ALLOWED_GUESSES:
+                await message.delete(delay=3)
+                await message.channel.send(
+                    f"{message.author.mention} :warning: Not a valid guess.",
+                    delete_after=2.5,
+                )
+                return
             try:
-                await message.delete()
+                await message.delete(delay=1.8)
             except discord.Forbidden:
                 pass
 
@@ -294,7 +303,11 @@ async def on_message(message: discord.Message):
             is_game_over = is_winner or (len(bot.wordy_guesses) >= 6)
 
             updated_embed = create_wordy_embed(
-                bot.wordy_guesses, bot.wordy_word, game_over=is_game_over
+                bot.wordy_guesses,
+                bot.wordy_word,
+                bot.explored,
+                message.author,
+                game_over=is_game_over,
             )
 
             view = discord.ui.View()
@@ -323,6 +336,7 @@ async def on_message(message: discord.Message):
                 bot.wordy_word = ""
                 bot.wordy_author = None
                 bot.wordy_message = None
+                bot.explored = None
 
     await bot.process_commands(message)
 
