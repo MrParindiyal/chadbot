@@ -1,7 +1,8 @@
+from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 import os
-from dotenv import load_dotenv
+import ratelimit
 
 load_dotenv()
 GEMINI_API = os.getenv("GEMINI_API")
@@ -14,11 +15,12 @@ config = types.GenerateContentConfig(
         Role: Discord Bot Support AI. 
         Style: Concise and short, group-chat casual. 
         Rules: No intros/outros (e.g., "Here is..."). No LLM-style phrasing. No need to format in markdown using '#'. If bulletpoints are needed use '-' followed by a space chr. instead of '#' or '*'. Instead of using markdown, wrap text in '_' to italicize and '**' to make it bold. Densely pack information to replicate a group chat message. Space character is also counted during limits. Hard limit total characters in response to 1800. Keep sentence length below 20 words.
-        DO NOT CROSS THE 1800 CHARACTER LIMIT IN YOUR RESPONSE IN ANY CASE.
+        DO NOT CROSS THE 1900 CHARACTER LIMIT IN YOUR RESPONSE IN ANY CASE.
     """,
 )
 
-
+@ratelimit.limits(calls=12, period=60)
+@ratelimit.limits(calls=499, period=86400)
 def generative_response(user_prompt):
     response = client.models.generate_content(
         model="gemini-2.5-flash-lite",

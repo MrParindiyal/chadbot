@@ -5,8 +5,10 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
-from src.gemini import generative_response
+from google.genai.errors import APIError, ClientError
 import os
+from ratelimit import RateLimitException
+from src.gemini import generative_response, generative_search
 from src.helpers import *
 from src.response import random_response, hook
 from webserver import keep_alive
@@ -234,6 +236,14 @@ async def ask(interaction: discord.Interaction, text: app_commands.Range[str, 1,
     try:
         response = await asyncio.to_thread(generative_response, str(text))
         await interaction.edit_original_response(content=response)
+    except RateLimitException as e:
+        await interaction.edit_original_response(
+            content=f"Oops! You are being rate-limited. Retry after **{round(e.period_remaining,1)}** seconds"
+        )
+    except (APIError, ClientError) as e:
+        await interaction.edit_original_response(
+            content=f"Oops! An API error was caught : {e.code} {e.status}"
+        )
     except Exception as e:
         await interaction.edit_original_response(f"Oops! An error was caught : {e}")
 
