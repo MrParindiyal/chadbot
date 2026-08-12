@@ -106,21 +106,31 @@ def create_wordy_embed(guesses, target_word, explored, player, game_over=False):
     embed.set_thumbnail(url=player.display_avatar.url)
     board_text = ""
     for guess in guesses:
-        row_str = ""
+        guess = list(guess)
+        target = list(target_word)
+        row_str_list = [""] * len(guess)
+
         for i, letter in enumerate(guess):
             letter_capital = letter.upper()
             row = get_row_by_letter(explored, letter_capital)
-            if letter == target_word[i]:
-                row_str += f"{EMOJIS[f"green_{letter_capital}"]} "
+            row_str_list[i] = f"{EMOJIS[f"grey_{letter_capital}"]} "
+            explored[row][letter_capital] = f"grey_{letter_capital}"
+            if letter == target[i]:
+                row_str_list[i] = f"{EMOJIS[f"green_{letter_capital}"]} "
                 explored[row][letter_capital] = f"green_{letter_capital}"
-            elif letter in target_word:
-                row_str += f"{EMOJIS[f"yellow_{letter.upper()}"]} "
+                guess[i] = None
+                target[i] = None
+
+        for i, letter in enumerate(guess):
+            if letter is None:
+                pass
+            elif letter in target:
+                row_str_list[i] = f"{EMOJIS[f"yellow_{letter.upper()}"]} "
+                target[target.index(letter)] = None
                 if explored[row][letter_capital][:5] != "green":
                     explored[row][letter_capital] = f"yellow_{letter_capital}"
-            else:
-                row_str += f"{EMOJIS[f"grey_{letter_capital}"]} "
-                explored[row][letter_capital] = f"grey_{letter_capital}"
 
+        row_str = "".join(row_str_list)
         board_text += f"{row_str}\n"
 
     remaining_rows = 6 - len(guesses)
