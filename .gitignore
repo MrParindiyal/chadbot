@@ -5,3 +5,5 @@ actual.env
 .venv
 .vscode
 test/*
+*.log
+*.log.*

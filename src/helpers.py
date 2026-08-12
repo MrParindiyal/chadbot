@@ -84,6 +84,10 @@ class WordyEndButton(discord.ui.View):
         self.bot.wordy_author = None
 
 
+def get_row_by_letter(keyboard, alphabet):
+    return keyboard["track"][alphabet]
+
+
 def return_formatted_row(row_num: int, keyboard: dict) -> str:
     row = f"row{row_num}"
     out = ""
@@ -104,21 +108,18 @@ def create_wordy_embed(guesses, target_word, explored, player, game_over=False):
     for guess in guesses:
         row_str = ""
         for i, letter in enumerate(guess):
+            letter_capital = letter.upper()
+            row = get_row_by_letter(explored, letter_capital)
             if letter == target_word[i]:
-                row_str += f"{EMOJIS[f"green_{letter.upper()}"]} "
-                explored[explored["track"][letter.upper()]][
-                    letter.upper()
-                ] = f"green_{letter.upper()}"
+                row_str += f"{EMOJIS[f"green_{letter_capital}"]} "
+                explored[row][letter_capital] = f"green_{letter_capital}"
             elif letter in target_word:
                 row_str += f"{EMOJIS[f"yellow_{letter.upper()}"]} "
-                explored[explored["track"][letter.upper()]][
-                    letter.upper()
-                ] = f"yellow_{letter.upper()}"
+                if explored[row][letter_capital][:5] != "green":
+                    explored[row][letter_capital] = f"yellow_{letter_capital}"
             else:
-                row_str += f"{EMOJIS[f"grey_{letter.upper()}"]} "
-                explored[explored["track"][letter.upper()]][
-                    letter.upper()
-                ] = f"grey_{letter.upper()}"
+                row_str += f"{EMOJIS[f"grey_{letter_capital}"]} "
+                explored[row][letter_capital] = f"grey_{letter_capital}"
 
         board_text += f"{row_str}\n"
 
