@@ -245,7 +245,30 @@ async def ask(interaction: discord.Interaction, text: app_commands.Range[str, 1,
             content=f"Oops! An API error was caught : {e.code} {e.status}"
         )
     except Exception as e:
-        await interaction.edit_original_response(f"Oops! An error was caught : {e}")
+        await interaction.edit_original_response(
+            content=f"Oops! An error was caught : {e}"
+        )
+
+
+@bot.tree.command(name="search", description="Smart search with up-to-date info, LLM powered")
+@app_commands.describe(text="Type your query here")
+async def ask(interaction: discord.Interaction, text: app_commands.Range[str, 1, 500]):
+    await interaction.response.defer(thinking=True)
+    try:
+        response = await asyncio.to_thread(generative_search, str(text))
+        await interaction.edit_original_response(content=response)
+    except RateLimitException as e:
+        await interaction.edit_original_response(
+            content=f"Oops! You are being rate-limited. Retry after **{round(e.period_remaining,1)}** seconds"
+        )
+    except (APIError, ClientError) as e:
+        await interaction.edit_original_response(
+            content=f"Oops! An API error was caught : {e.code} {e.status}"
+        )
+    except Exception as e:
+        await interaction.edit_original_response(
+            content=f"Oops! An error was caught : {e}"
+        )
 
 
 @bot.tree.command(name="wordy", description="Start a game of Wordy")
