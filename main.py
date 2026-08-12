@@ -6,6 +6,8 @@ from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
 from google.genai.errors import APIError, ClientError
+import logging
+from logging.handlers import RotatingFileHandler
 import os
 from ratelimit import RateLimitException
 from src.gemini import generative_response, generative_search
@@ -14,6 +16,20 @@ from src.response import random_response, hook
 from webserver import keep_alive
 
 load_dotenv()
+
+logger = logging.getLogger("botLogger")
+logger.setLevel(logging.INFO)
+formatter = logging.Formatter("[%(asctime)s] [%(levelname)s] %(name)s : %(message)s")
+file_handler = RotatingFileHandler(
+    filename="bot.log", maxBytes=8 * 1024 * 1024, backupCount=3, encoding="utf-8"
+)
+file_handler.setFormatter(formatter)
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
+
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+logging.getLogger("discord").addHandler(file_handler)
 
 
 class CustomBot(commands.Bot):
@@ -40,7 +56,9 @@ class CustomBot(commands.Bot):
         self.explored = None
 
     async def setup_hook(self):
-        await self.tree.sync()
+        logger.info("Syncing slash commands...")
+        synced = await self.tree.sync()
+        logger.info(f"Synced {len(synced)} command(s).")
 
 
 bot = CustomBot()
@@ -48,7 +66,40 @@ bot = CustomBot()
 
 @bot.event
 async def on_ready():
-    print(f"We have logged in successfully as {bot.user}")
+    logger.info(f"Logged in successfully as {bot.user} (ID: {bot.user.id})")
+
+
+@bot.tree.error
+async def on_app_command_error(
+    interaction: discord.Interaction, error: app_commands.AppCommandError
+):
+    """ "Base error handler"""
+    original_err = getattr(error, "original", error)
+
+    if isinstance(original_err, RateLimitException):
+        msg = f"Oops! You are being rate-limited. Retry after **{round(original_err.period_remaining, 1)}** seconds."
+        logger.warning(
+            f"Rate limit hit by {interaction.user} in command /{interaction.command.name}"
+        )
+    elif isinstance(original_err, (APIError, ClientError)):
+        msg = (
+            f"Oops! An API error was caught : {original_err.code} {original_err.status}"
+        )
+        logger.error(
+            f"API Error in /{interaction.command.name}: {original_err}",
+            exc_info=original_err,
+        )
+    else:
+        msg = f"Oops! An unexpected error occurred: {original_err}"
+        logger.error(
+            f"Unhandled error in /{interaction.command.name}: {original_err}",
+            exc_info=original_err,
+        )
+
+    if interaction.response.is_done():
+        await interaction.edit_original_response(content=msg)
+    else:
+        await interaction.response.send_message(content=msg, ephemeral=True)
 
 
 @bot.tree.command(name="ping", description="Returns the bot's gateway latency")
@@ -188,6 +239,9 @@ async def clear(
 
     try:
         deleted = await interaction.channel.purge(limit=amount, check=check_message)
+        logger.info(
+            f"Purged {len(deleted)} messages in #{interaction.channel} (User: {interaction.user})"
+        )
         await interaction.followup.send(
             f":white_check_mark: Successfully purged {len(deleted)} messages.",
             ephemeral=True,
@@ -198,6 +252,9 @@ async def clear(
             "Messages older than 14 days cannot be bulk deleted" in str(e)
             or e.code == 50034
         ):
+            logger.warning(
+                f"Bulk delete restriction hit in #{interaction.channel}. Switching to manual deletion fallback."
+            )
             await interaction.followup.send(
                 ":warning: Bulk delete failed. Falling back to manual cleanup...",
                 ephemeral=True,
@@ -212,16 +269,26 @@ async def clear(
                     await message.delete()
                     counter += 1
 
+            logger.info(
+                f"Manual fallback complete in #{interaction.channel}. Deleted {counter} messages."
+            )
             await interaction.followup.send(
                 f":white_check_mark: Fallback complete. Iteratively deleted {counter} messages.",
                 ephemeral=True,
             )
         else:
+            logger.error(
+                f"Unexpected HTTP error during purge in #{interaction.channel}: {e}",
+                exc_info=e,
+            )
             await interaction.followup.send(
                 f":warning: An unexpected error occurred: {e}", ephemeral=True
             )
 
     except discord.Forbidden:
+        logger.warning(
+            f"Permission denied while attempting to purge #{interaction.channel} (Requested by {interaction.user})"
+        )
         await interaction.followup.send(
             ":x: I don't have permission to delete messages in this channel.",
             ephemeral=True,
@@ -231,44 +298,25 @@ async def clear(
 @bot.tree.command(name="ask", description="Ask questions to the AI underlords")
 @app_commands.describe(text="Type your question here")
 async def ask(interaction: discord.Interaction, text: app_commands.Range[str, 1, 500]):
+    logger.info(
+        f"User: {interaction.user} ID: {interaction.user.id} issued /ask with query: '{text}'"
+    )
     await interaction.response.defer(thinking=True)
-    # check_limits(interaction.user.id)
-    try:
-        response = await asyncio.to_thread(generative_response, str(text))
-        await interaction.edit_original_response(content=response)
-    except RateLimitException as e:
-        await interaction.edit_original_response(
-            content=f"Oops! You are being rate-limited. Retry after **{round(e.period_remaining,1)}** seconds"
-        )
-    except (APIError, ClientError) as e:
-        await interaction.edit_original_response(
-            content=f"Oops! An API error was caught : {e.code} {e.status}"
-        )
-    except Exception as e:
-        await interaction.edit_original_response(
-            content=f"Oops! An error was caught : {e}"
-        )
+    response = await asyncio.to_thread(generative_response, str(text))
+    await interaction.edit_original_response(content=response)
 
 
-@bot.tree.command(name="search", description="Smart search with up-to-date info, LLM powered")
+@bot.tree.command(
+    name="search", description="Smart search with up-to-date info, LLM powered"
+)
 @app_commands.describe(text="Type your query here")
 async def ask(interaction: discord.Interaction, text: app_commands.Range[str, 1, 500]):
+    logger.info(
+        f"User: {interaction.user} ID: {interaction.user.id} issued /search with query: '{text}'"
+    )
     await interaction.response.defer(thinking=True)
-    try:
-        response = await asyncio.to_thread(generative_search, str(text))
-        await interaction.edit_original_response(content=response)
-    except RateLimitException as e:
-        await interaction.edit_original_response(
-            content=f"Oops! You are being rate-limited. Retry after **{round(e.period_remaining,1)}** seconds"
-        )
-    except (APIError, ClientError) as e:
-        await interaction.edit_original_response(
-            content=f"Oops! An API error was caught : {e.code} {e.status}"
-        )
-    except Exception as e:
-        await interaction.edit_original_response(
-            content=f"Oops! An error was caught : {e}"
-        )
+    response = await asyncio.to_thread(generative_search, str(text))
+    await interaction.edit_original_response(content=response)
 
 
 @bot.tree.command(name="wordy", description="Start a game of Wordy")
@@ -308,8 +356,10 @@ async def on_message(message: discord.Message):
             if len(content) != 5:
                 try:
                     await message.delete()
-                except discord.HTTPException:
-                    pass
+                except discord.HTTPException as e:
+                    logger.warning(
+                        f"Error while deleting guess : {e.status} {e.text} : {e.response}"
+                    )
 
                 await message.channel.send(
                     f"{message.author.mention} :warning: Game is ongoing. This word does not qualify as a guess (must be exactly 5 letters).",
@@ -328,8 +378,10 @@ async def on_message(message: discord.Message):
                 return
             try:
                 await message.delete(delay=1.8)
-            except discord.Forbidden:
-                pass
+            except discord.Forbidden as e:
+                logger.warning(
+                    f"Message deletion failed: {e.status} {e.text} : {e.response}"
+                )
 
             bot.wordy_guesses.append(guess)
 
