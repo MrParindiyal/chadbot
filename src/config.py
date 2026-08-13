@@ -1,4 +1,11 @@
 """
+Duration after which wordy game ends.
+"""
+
+WORDY_TIMER = 60
+
+
+"""
 Application emojis, with their emoji ID,
 extracted from Disocrd Developer Portal
 with the help of fetch_emoji_data.py

@@ -1,3 +1,4 @@
+import asyncio
 import discord
 import random
 from src.config import *
@@ -62,6 +63,7 @@ class WordyEndButton(discord.ui.View):
                 self.bot.wordy_word,
                 self.bot.explored,
                 interaction.user,
+                self.bot.unix_end_timer,
                 game_over=True,
             )
             embed.color = discord.Color.red()
@@ -75,13 +77,18 @@ class WordyEndButton(discord.ui.View):
             child.disabled = True
 
         await interaction.response.edit_message(embed=embed, view=self)
-
+        if self.bot.wordy_timer_task:
+            self.bot.wordy_timer_task.cancel()
+            self.bot.wordy_timer_task = None
         # Reset bot state
         self.bot.wordy_active = False
         self.bot.wordy_word = ""
         self.bot.wordy_guesses = []
         self.bot.wordy_message = None
         self.bot.wordy_author = None
+        self.bot.explored = None
+        self.bot.unix_end_timer = -1
+        self.bot.wordy_timer_task = None
 
 
 def get_row_by_letter(keyboard, alphabet):
@@ -97,10 +104,13 @@ def return_formatted_row(row_num: int, keyboard: dict) -> str:
     return out
 
 
-def create_wordy_embed(guesses, target_word, explored, player, game_over=False):
+def create_wordy_embed(
+    guesses, target_word, explored, player, timer=None, game_over=False
+):
     embed = discord.Embed(
         title=":green_square: Discord Wordy :yellow_square:",
-        description="Guess the 5-letter word! Type your guesses in chat.\n\n\n",
+        description=f"""Guess the 5-letter word! Type your guesses in chat.\n
+        **Time Remaining:** <t:{timer}:R>\n\n""",
         color=discord.Color.blurple(),
     )
     embed.set_thumbnail(url=player.display_avatar.url)
@@ -160,3 +170,35 @@ def create_wordy_embed(guesses, target_word, explored, player, game_over=False):
 
 def pick_random_word():
     return random.choice(WORDS)
+
+
+async def background_timer_task(bot_instance, n):
+    try:
+        await asyncio.sleep(n)
+
+        if bot_instance.wordy_active == True:
+            expired = create_wordy_embed(
+                bot_instance.wordy_guesses,
+                bot_instance.wordy_word,
+                bot_instance.explored,
+                None,
+                bot_instance.unix_end_timer,
+                game_over=True,
+            )
+            expired.color = discord.Color.red()
+            expired.set_footer(
+                text=f"he game expired. The word was {bot_instance.wordy_word.upper()}."
+            )
+            await bot_instance.wordy_message.edit(embed=expired, view=None)
+            bot_instance.wordy_active = False
+            bot_instance.wordy_word = ""
+            bot_instance.wordy_guesses = []
+            bot_instance.wordy_message = None
+            bot_instance.wordy_author = None
+            bot_instance.explored = None
+            bot_instance.unix_end_timer = -1
+            bot_instance.wordy_timer_task = None
+
+    except asyncio.CancelledError:
+        # Task cancelled, game finished before timeout.
+        pass
