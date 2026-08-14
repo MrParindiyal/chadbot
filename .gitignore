@@ -7,3 +7,4 @@ actual.env
 test/*
 *.log
 *.log.*
+__config.py

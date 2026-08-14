@@ -1,15 +1,13 @@
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+WORDY_TIMER = 60
 """
 Duration after which wordy game ends.
 """
 
-WORDY_TIMER = 60
-
-
-"""
-Application emojis, with their emoji ID,
-extracted from Disocrd Developer Portal
-with the help of fetch_emoji_data.py
-"""
 
 EMOJIS = {
     "green_A": "<:green_A:1533946763067527248>",
@@ -117,11 +115,12 @@ EMOJIS = {
     "unexplored_Y": "<:unexplored_Y:1534700996972908645>",
     "unexplored_Z": "<:unexplored_Z:1534700999099420732>",
 }
+"""
+Application emojis, with their emoji ID, extracted from 
+Disocrd Developer Portal with the help of fetch_emoji_data.py
+"""
 
 
-"""
-Keyboard to track explored status of letters.
-"""
 KEYBOARD = {
     "row1": {
         "Q": "unexplored_Q",
@@ -184,10 +183,11 @@ KEYBOARD = {
         "M": "row3",
     },
 }
+"""
+Keyboard to track explored status of letters.
+"""
 
-"""
-Tuple of words that can be chosen as a solution.
-"""
+
 WORDS = (
     "squib",
     "mores",
@@ -4216,11 +4216,11 @@ WORDS = (
     "oddly",
     "humor",
 )
+"""
+Tuple of words that can be chosen as a solution.
+"""
 
 
-"""
-Set of words that can be guessed.
-"""
 ALLOWED_GUESSES: set[str] = {
     "tined",
     "vaned",
@@ -17190,3 +17190,15 @@ ALLOWED_GUESSES: set[str] = {
     "brule",
     "humor",
 }
+"""
+Set of words that can be guessed.
+"""
+
+
+if os.getenv("IS_DEV"):
+    try:
+        import src.__config
+
+        EMOJIS = src.__config.EMOJIS
+    except ImportError:
+        pass
