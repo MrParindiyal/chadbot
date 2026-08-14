@@ -1,7 +1,10 @@
 import asyncio
 import discord
+import logging
 import random
 from src.config import *
+
+logger = logging.getLogger(__name__)
 
 try:
     with open("./data/approved.txt", "r") as f:
@@ -104,6 +107,27 @@ def return_formatted_row(row_num: int, keyboard: dict) -> str:
     return out
 
 
+def set_explored_color(keyboard, letter, color):
+    letter = letter.upper()
+    row = get_row_by_letter(keyboard, letter)
+
+    if color in ("green", "yellow", "grey"):
+        match color:
+            case "grey":
+                if keyboard[row][letter].startswith("unexplored"):
+                    keyboard[row][letter] = f"{color}_{letter}"
+
+            case "yellow":
+                if not keyboard[row][letter].startswith("green"):
+                    keyboard[row][letter] = f"{color}_{letter}"
+
+            case "green":
+                keyboard[row][letter] = f"{color}_{letter}"
+
+    else:
+        logger.warning(f"Wrong color was provided : {color}")
+
+
 def create_wordy_embed(
     guesses, target_word, explored, player, timer=None, game_over=False
 ):
@@ -124,10 +148,10 @@ def create_wordy_embed(
             letter_capital = letter.upper()
             row = get_row_by_letter(explored, letter_capital)
             row_str_list[i] = f"{EMOJIS[f"grey_{letter_capital}"]} "
-            explored[row][letter_capital] = f"grey_{letter_capital}"
+            set_explored_color(explored, letter_capital, "grey")
             if letter == target[i]:
                 row_str_list[i] = f"{EMOJIS[f"green_{letter_capital}"]} "
-                explored[row][letter_capital] = f"green_{letter_capital}"
+                set_explored_color(explored, letter_capital, "green")
                 guess[i] = None
                 target[i] = None
 
@@ -136,9 +160,8 @@ def create_wordy_embed(
                 pass
             elif letter in target:
                 row_str_list[i] = f"{EMOJIS[f"yellow_{letter.upper()}"]} "
+                set_explored_color(explored, letter, "yellow")
                 target[target.index(letter)] = None
-                if explored[row][letter_capital][:5] != "green":
-                    explored[row][letter_capital] = f"yellow_{letter_capital}"
 
         row_str = "".join(row_str_list)
         board_text += f"{row_str}\n"
@@ -146,6 +169,7 @@ def create_wordy_embed(
     remaining_rows = 6 - len(guesses)
     for _ in range(remaining_rows):
         board_text += ":black_large_square: :black_large_square: :black_large_square: :black_large_square: :black_large_square:\n"
+
     content = ""
     for i, key in enumerate(explored):
         if key != "track":
