@@ -1,5 +1,6 @@
 import asyncio
 import discord
+from discord.ext import commands
 import logging
 import random
 from src.config import *
@@ -42,17 +43,28 @@ def remove_whitelisted_user(userid: str) -> bool:
     return True
 
 
+def flush_game_data(bot: commands.Bot):
+    bot.wordy_active = False
+    bot.wordy_word = ""
+    bot.wordy_guesses = []
+    bot.wordy_message = None
+    bot.wordy_author = None
+    bot.explored = None
+    bot.unix_end_timer = -1
+    bot.wordy_timer_task = None
+
+
 class WordyEndButton(discord.ui.View):
-    def __init__(self, bot_instance, player_id):
+    def __init__(self, bot_instance, player):
         super().__init__(timeout=None)
         self.bot = bot_instance
-        self.interacting_author = player_id
+        self.player: discord.User = player
 
     @discord.ui.button(
         label="End Game", style=discord.ButtonStyle.danger, custom_id="end_wordy_game"
     )
     async def end_game_callback(
-        self, interaction: discord.Interaction, button: discord.ui.Button
+        self, interaction: discord.Interaction, _button: discord.ui.Button
     ):
         if not self.bot.wordy_active:
             await interaction.response.send_message(
@@ -60,12 +72,14 @@ class WordyEndButton(discord.ui.View):
             )
             return
 
-        if interaction.user.id == self.interacting_author:
+        if interaction.user.id == self.player.id or is_user_approved(
+            str(interaction.user.id)
+        ):
             embed = create_wordy_embed(
                 self.bot.wordy_guesses,
                 self.bot.wordy_word,
                 self.bot.explored,
-                interaction.user,
+                self.player,
                 self.bot.unix_end_timer,
                 game_over=True,
             )
@@ -84,14 +98,7 @@ class WordyEndButton(discord.ui.View):
             self.bot.wordy_timer_task.cancel()
             self.bot.wordy_timer_task = None
         # Reset bot state
-        self.bot.wordy_active = False
-        self.bot.wordy_word = ""
-        self.bot.wordy_guesses = []
-        self.bot.wordy_message = None
-        self.bot.wordy_author = None
-        self.bot.explored = None
-        self.bot.unix_end_timer = -1
-        self.bot.wordy_timer_task = None
+        flush_game_data(self.bot)
 
 
 def get_row_by_letter(keyboard, alphabet):
@@ -146,7 +153,6 @@ def create_wordy_embed(
 
         for i, letter in enumerate(guess):
             letter_capital = letter.upper()
-            row = get_row_by_letter(explored, letter_capital)
             row_str_list[i] = f"{EMOJIS[f"grey_{letter_capital}"]} "
             set_explored_color(explored, letter_capital, "grey")
             if letter == target[i]:
@@ -214,14 +220,7 @@ async def background_timer_task(bot_instance, n):
                 text=f"he game expired. The word was {bot_instance.wordy_word.upper()}."
             )
             await bot_instance.wordy_message.edit(embed=expired, view=None)
-            bot_instance.wordy_active = False
-            bot_instance.wordy_word = ""
-            bot_instance.wordy_guesses = []
-            bot_instance.wordy_message = None
-            bot_instance.wordy_author = None
-            bot_instance.explored = None
-            bot_instance.unix_end_timer = -1
-            bot_instance.wordy_timer_task = None
+            flush_game_data(bot_instance)
 
     except asyncio.CancelledError:
         # Task cancelled, game finished before timeout.

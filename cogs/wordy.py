@@ -29,7 +29,7 @@ class Wordy(commands.Cog):
         self.bot.wordy_active = True
         self.bot.wordy_word = target_word
         self.bot.wordy_guesses = []
-        self.bot.wordy_author = interaction.user.id
+        self.bot.wordy_author = interaction.user
         self.bot.explored = copy.deepcopy(KEYBOARD)
 
         self.bot.unix_end_timer = int(time.time() + WORDY_TIMER)
@@ -40,7 +40,7 @@ class Wordy(commands.Cog):
             interaction.user,
             self.bot.unix_end_timer,
         )
-        view = WordyEndButton(self.bot, interaction.user.id)
+        view = WordyEndButton(self.bot, interaction.user)
 
         await interaction.response.send_message(embed=initial_embed, view=view)
         self.bot.wordy_message = await interaction.original_response()
@@ -54,7 +54,7 @@ class Wordy(commands.Cog):
         if message.author.bot or not message.guild:
             return
 
-        if self.bot.wordy_active and message.author.id == self.bot.wordy_author:
+        if self.bot.wordy_active and message.author.id == self.bot.wordy_author.id:
             content = message.content.strip()
 
             if (
@@ -132,13 +132,7 @@ class Wordy(commands.Cog):
                     if self.bot.wordy_timer_task:
                         self.bot.wordy_timer_task.cancel()
                         self.bot.wordy_timer_task = None
-                    self.bot.wordy_active = False
-                    self.bot.wordy_guesses = []
-                    self.bot.wordy_word = ""
-                    self.bot.wordy_author = None
-                    self.bot.wordy_message = None
-                    self.bot.explored = None
-                    self.bot.unix_end_timer = -1
+                    flush_game_data(self.bot)
 
 
 async def setup(bot):
