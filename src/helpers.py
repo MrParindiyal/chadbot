@@ -4,6 +4,7 @@ from discord.ext import commands
 import logging
 import random
 from src.config import *
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -43,62 +44,8 @@ def remove_whitelisted_user(userid: str) -> bool:
     return True
 
 
-def flush_game_data(bot: commands.Bot):
-    bot.wordy_active = False
-    bot.wordy_word = ""
-    bot.wordy_guesses = []
-    bot.wordy_message = None
-    bot.wordy_author = None
-    bot.explored = None
-    bot.unix_end_timer = -1
-    bot.wordy_timer_task = None
-
-
-class WordyEndButton(discord.ui.View):
-    def __init__(self, bot_instance, player):
-        super().__init__(timeout=None)
-        self.bot = bot_instance
-        self.player: discord.User = player
-
-    @discord.ui.button(
-        label="End Game", style=discord.ButtonStyle.danger, custom_id="end_wordy_game"
-    )
-    async def end_game_callback(
-        self, interaction: discord.Interaction, _button: discord.ui.Button
-    ):
-        if not self.bot.wordy_active:
-            await interaction.response.send_message(
-                "There is no active wordy game running right now.", ephemeral=True
-            )
-            return
-
-        if interaction.user.id == self.player.id or is_user_approved(
-            str(interaction.user.id)
-        ):
-            embed = create_wordy_embed(
-                self.bot.wordy_guesses,
-                self.bot.wordy_word,
-                self.bot.explored,
-                self.player,
-                self.bot.unix_end_timer,
-                game_over=True,
-            )
-            embed.color = discord.Color.red()
-        else:
-            await interaction.response.send_message(
-                "You are not the player for this game!", ephemeral=True, delete_after=50
-            )
-            return
-
-        for child in self.children:
-            child.disabled = True
-
-        await interaction.response.edit_message(embed=embed, view=self)
-        if self.bot.wordy_timer_task:
-            self.bot.wordy_timer_task.cancel()
-            self.bot.wordy_timer_task = None
-        # Reset bot state
-        flush_game_data(self.bot)
+def pick_random_word():
+    return random.choice(WORDS)
 
 
 def get_row_by_letter(keyboard, alphabet):
@@ -135,13 +82,53 @@ def set_explored_color(keyboard, letter, color):
         logger.warning(f"Wrong color was provided : {color}")
 
 
+def flush_game_data(bot: commands.Bot):
+    bot.wordy_active = False
+    bot.wordy_word = ""
+    bot.wordy_guesses = []
+    bot.wordy_message = None
+    bot.wordy_author = None
+    bot.explored = None
+    bot.unix_end_timer = -1
+    bot.wordy_timer_task = None
+
+
+async def background_timer_task(bot_instance, time_to_sleep):
+    try:
+        await asyncio.sleep(time_to_sleep)
+        await end_game_helper(
+            bot_instance, interaction=None, timed_out=True, is_winner=False
+        )
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        logger.warning(f"Error in background_timer_task : {e}", exc_info=e)
+        flush_game_data(bot_instance)
+
+
 def create_wordy_embed(
-    guesses, target_word, explored, player, timer=None, game_over=False
+    guesses,
+    target_word,
+    explored,
+    player,
+    end_time=None,
+    time_left=None,
+    game_over=False,
 ):
+    if game_over and time_left is not None:
+        mins, secs = divmod(max(0, int(time_left)), 60)
+        time_display = f"`{mins:02d}:{secs:02d}`"
+
+    elif end_time is not None:
+        time_display = f"<t:{end_time}:R>"
+
+    else:
+        time_display = "`00:00`"
+
     embed = discord.Embed(
         title=":green_square: Discord Wordy :yellow_square:",
         description=f"""Guess the 5-letter word! Type your guesses in chat.\n
-        **Time Remaining:** <t:{timer}:R>\n\n""",
+        **Time Remaining:** {time_display}\n\n""",
         color=discord.Color.blurple(),
     )
     embed.set_thumbnail(url=player.display_avatar.url)
@@ -188,40 +175,86 @@ def create_wordy_embed(
     embed.add_field(name="Exploration status", value=content, inline=False)
     embed.add_field(name="Game Board", value=board_text, inline=False)
 
-    if game_over:
-        embed.set_footer(text=f"Game Ended. The word was: {target_word.upper()}")
-    else:
-        embed.set_footer(
-            text=f"Guesses used: {len(guesses)}/6 | Type a 5-letter word to play!"
-        )
-
     return embed
 
 
-def pick_random_word():
-    return random.choice(WORDS)
+async def end_game_helper(
+    bot: commands.Bot, interaction: discord.Interaction, timed_out, is_winner
+):
+    if not bot.wordy_active and interaction != None:
+        if not interaction.response.is_done():
+            await interaction.response.send_message(
+                "There is no active wordy game running right now.", ephemeral=True
+            )
+        return
 
+    player = bot.wordy_author
+    time_left = max(0, bot.unix_end_timer - time.time()) if not timed_out else 0
 
-async def background_timer_task(bot_instance, n):
+    embed = create_wordy_embed(
+        bot.wordy_guesses,
+        bot.wordy_word,
+        bot.explored,
+        bot.wordy_author,
+        bot.unix_end_timer,
+        time_left,
+        game_over=True,
+    )
+
+    if is_winner:
+        embed.color = discord.Color.green()
+        embed.set_footer(
+            text=f"🎉 Won by {player.display_name}! The word was {bot.wordy_word.upper()}."
+        )
+
+    elif timed_out:
+        embed.color = discord.Color.darker_grey()
+        embed.set_footer(text=f"⏰ Time's up! The word was {bot.wordy_word.upper()}.")
+
+    else:
+        embed.color = discord.Color.red()
+        embed.set_footer(text=f"💀 Game Over! The word was {bot.wordy_word.upper()}.")
+
+    current_task = asyncio.current_task()
+    if (
+        bot.wordy_timer_task
+        and not bot.wordy_timer_task.done()
+        and bot.wordy_timer_task != current_task
+    ):
+        bot.wordy_timer_task.cancel()
+    bot.wordy_timer_task = None
+
     try:
-        await asyncio.sleep(n)
-
-        if bot_instance.wordy_active == True:
-            expired = create_wordy_embed(
-                bot_instance.wordy_guesses,
-                bot_instance.wordy_word,
-                bot_instance.explored,
-                None,
-                bot_instance.unix_end_timer,
-                game_over=True,
-            )
-            expired.color = discord.Color.red()
-            expired.set_footer(
-                text=f"he game expired. The word was {bot_instance.wordy_word.upper()}."
-            )
-            await bot_instance.wordy_message.edit(embed=expired, view=None)
-            flush_game_data(bot_instance)
-
-    except asyncio.CancelledError:
-        # Task cancelled, game finished before timeout.
+        if interaction and not interaction.response.is_done():
+            await interaction.response.edit_message(embed=embed, view=None)
+        elif bot.wordy_message:
+            await bot.wordy_message.edit(embed=embed, view=None)
+    except discord.HTTPException:
         pass
+
+    flush_game_data(bot)
+
+
+class WordyEndButton(discord.ui.View):
+    def __init__(self, bot_instance, player):
+        super().__init__(timeout=None)
+        self.bot = bot_instance
+        self.player: discord.User = player
+
+    @discord.ui.button(
+        label="End Game", style=discord.ButtonStyle.danger, custom_id="end_wordy_game"
+    )
+    async def end_game_callback(
+        self, interaction: discord.Interaction, _button: discord.ui.Button
+    ):
+        if interaction.user.id != self.player.id and not is_user_approved(
+            str(interaction.user.id)
+        ):
+            await interaction.response.send_message(
+                f"You are not the player for this game!",
+                ephemeral=True,
+                delete_after=15,
+            )
+            return
+
+        await end_game_helper(self.bot, interaction, timed_out=False, is_winner=False)

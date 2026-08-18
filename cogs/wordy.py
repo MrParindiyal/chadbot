@@ -24,18 +24,15 @@ class Wordy(commands.Cog):
             )
             return
 
-        target_word = pick_random_word()
-
         self.bot.wordy_active = True
-        self.bot.wordy_word = target_word
+        self.bot.wordy_word = pick_random_word()
         self.bot.wordy_guesses = []
         self.bot.wordy_author = interaction.user
         self.bot.explored = copy.deepcopy(KEYBOARD)
-
         self.bot.unix_end_timer = int(time.time() + WORDY_TIMER)
         initial_embed = create_wordy_embed(
             [],
-            target_word,
+            self.bot.wordy_word,
             self.bot.explored,
             interaction.user,
             self.bot.unix_end_timer,
@@ -62,6 +59,7 @@ class Wordy(commands.Cog):
                 and not content.startswith("!")
                 and self.bot.wordy_active
             ):
+
                 if len(content) != 5:
                     try:
                         await message.delete()
@@ -95,7 +93,17 @@ class Wordy(commands.Cog):
                 self.bot.wordy_guesses.append(guess)
 
                 is_winner = guess == self.bot.wordy_word
-                is_game_over = is_winner or (len(self.bot.wordy_guesses) >= 6)
+                guess_exhausted = len(self.bot.wordy_guesses) >= 6
+
+                if is_winner:
+                    await end_game_helper(
+                        self.bot, interaction=None, timed_out=False, is_winner=True
+                    )
+                    return
+                elif guess_exhausted:
+                    await end_game_helper(
+                        self.bot, interaction=None, timed_out=False, is_winner=False
+                    )
 
                 updated_embed = create_wordy_embed(
                     self.bot.wordy_guesses,
@@ -103,36 +111,16 @@ class Wordy(commands.Cog):
                     self.bot.explored,
                     message.author,
                     self.bot.unix_end_timer,
-                    game_over=is_game_over,
                 )
 
-                view = discord.ui.View()
-                if is_winner:
-                    updated_embed.color = discord.Color.green()
-                    updated_embed.set_footer(
-                        text=f"🎉 Won by {message.author.display_name}! The word was {self.bot.wordy_word.upper()}."
-                    )
-
-                elif len(self.bot.wordy_guesses) >= 6:
-                    updated_embed.color = discord.Color.red()
-                    updated_embed.set_footer(
-                        text=f"💀 Game Over! The word was {self.bot.wordy_word.upper()}."
-                    )
-
-                else:
-                    view = WordyEndButton(self.bot, self.bot.wordy_author)
+                view = WordyEndButton(self.bot, self.bot.wordy_author)
 
                 try:
-                    await self.bot.wordy_message.edit(
-                        embed=updated_embed, view=view if not is_game_over else None
-                    )
+                    await self.bot.wordy_message.edit(embed=updated_embed, view=view)
+                except discord.HTTPException as e:
+                    logger.warning(f"Issue with embeds", exc_info=e)
                 except AttributeError as e:
                     logger.warning(f"Message not found : {e}")
-                if is_game_over:
-                    if self.bot.wordy_timer_task:
-                        self.bot.wordy_timer_task.cancel()
-                        self.bot.wordy_timer_task = None
-                    flush_game_data(self.bot)
 
 
 async def setup(bot):

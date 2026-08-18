@@ -3,7 +3,7 @@ import os
 
 load_dotenv()
 
-WORDY_TIMER = 60
+WORDY_TIMER = 180
 """
 Duration after which wordy game ends.
 """
