@@ -36,26 +36,6 @@ class Admin(commands.Cog):
                 ephemeral=True,
             )
 
-    @whitelist.error
-    async def whitelist_error(
-        self, interaction: discord.Interaction, error: app_commands.AppCommandError
-    ):
-        interaction_handler = (
-            interaction.followup.send
-            if interaction.response.is_done()
-            else interaction.response.send_message
-        )
-
-        if isinstance(error, app_commands.errors.MissingPermissions):
-            await interaction_handler(
-                ":x: You do not have permission to use this command.", ephemeral=True
-            )
-        else:
-            await interaction_handler(
-                f":x: An error occurred while processing the command.{error}",
-                ephemeral=True,
-            )
-
     @app_commands.command(
         name="delist", description="Remove a user from bot's approve list [admin only]"
     )
@@ -72,26 +52,6 @@ class Admin(commands.Cog):
         else:
             await interaction.response.send_message(
                 f":warning: **{user.name}** is not on the whitelist.", ephemeral=True
-            )
-
-    @delist.error
-    async def delist_error(
-        self, interaction: discord.Interaction, error: app_commands.AppCommandError
-    ):
-        interaction_handler = (
-            interaction.followup.send
-            if interaction.response.is_done()
-            else interaction.response.send_message
-        )
-
-        if isinstance(error, app_commands.errors.MissingPermissions):
-            await interaction_handler(
-                ":x: You do not have permission to use this command.", ephemeral=True
-            )
-        else:
-            await interaction_handler(
-                f":x: An error occurred while processing the command.{error}",
-                ephemeral=True,
             )
 
     @app_commands.command(

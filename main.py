@@ -76,22 +76,40 @@ class CustomBot(commands.Bot):
         command_name = (
             f"/{interaction.command.name}" if interaction.command else "Unknown Command"
         )
+        if isinstance(error, app_commands.MissingPermissions):
+            msg = ":x: You do not have permission to use this command."
+            logger.warning(
+                f"User {interaction.user} missing permissions for {command_name}: {error.missing_permissions}"
+            )
 
-        if isinstance(original_err, RateLimitException):
+        elif isinstance(error, app_commands.NoPrivateMessage):
+            msg = ":x: This command can only be used within a server."
+            logger.warning(
+                f"User {interaction.user} attempted server-only command {command_name} in DMs"
+            )
+
+        elif isinstance(error, app_commands.BotMissingPermissions):
+            msg = f":x: I am missing permissions to run this command: `{', '.join(error.missing_permissions)}`"
+            logger.warning(
+                f"Bot missing permissions for {command_name} in channel #{interaction.channel}: {error.missing_permissions}"
+            )
+
+        elif isinstance(original_err, RateLimitException):
             msg = f"Oops! You are being rate-limited. Retry after **{round(original_err.period_remaining, 1)}** seconds."
             logger.warning(
-                f"Rate limit hit by {interaction.user} in command /{interaction.command.name}"
+                f"Rate limit hit by {interaction.user} in command {command_name}"
             )
+
         elif isinstance(original_err, (APIError, ClientError)):
             msg = f"Oops! An API error was caught : {original_err.code} {original_err.status}"
             logger.error(
-                f"API Error in /{interaction.command.name}: {original_err}",
+                f"API Error in {command_name}: {original_err}",
                 exc_info=original_err,
             )
         else:
             msg = f"Oops! An unexpected error occurred: {original_err}"
             logger.error(
-                f"Unhandled error in /{interaction.command.name}: {original_err}",
+                f"Unhandled error in {command_name}: {original_err}",
                 exc_info=original_err,
             )
 
