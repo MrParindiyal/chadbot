@@ -22,7 +22,7 @@ config = types.GenerateContentConfig(
 
 @ratelimit.limits(calls=12, period=60)
 @ratelimit.limits(calls=499, period=86400)
-def generative_response(user_prompt):
+def generative_response(user_prompt: str) -> str:
     config.tools = []  # search grounding not available for 3rd gen models
     config.system_instruction += (
         "If you don't know something, DENY to answer. DO NOT HALLUCINATE."
@@ -38,7 +38,7 @@ def generative_response(user_prompt):
 
 @ratelimit.limits(calls=3, period=60)
 @ratelimit.limits(calls=18, period=86400)
-def generative_search(user_prompt):
+def generative_search(user_prompt: str) -> str:
     response = client.models.generate_content(
         model="gemini-2.5-flash-lite",
         contents=user_prompt,

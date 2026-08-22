@@ -1,3 +1,4 @@
+from asyncio import Task
 from dotenv import load_dotenv
 import discord
 from discord import app_commands
@@ -46,14 +47,14 @@ class CustomBot(commands.Bot):
         )
         self.tree.error(self.on_app_command_error)
 
-        self.wordy_active = False
-        self.wordy_word = ""
-        self.wordy_guesses = []
-        self.wordy_message = None
-        self.wordy_author = None
-        self.explored = None
-        self.unix_end_timer = -1
-        self.wordy_timer_task = None
+        self.wordy_active: bool = False
+        self.wordy_word: str = ""
+        self.wordy_guesses: list[str] = []
+        self.wordy_message: discord.InteractionMessage | None = None
+        self.wordy_author: discord.User | discord.Member | None = None
+        self.explored: dict[str, dict[str, str]] = {}
+        self.unix_end_timer: int = -1
+        self.wordy_timer_task: Task[None] | None = None
 
     async def on_ready(self):
         logger.info(f"Logged in successfully as {self.user} (ID: {self.user.id})")

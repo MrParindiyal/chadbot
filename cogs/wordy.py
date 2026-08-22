@@ -1,3 +1,4 @@
+from __future__ import annotations
 import asyncio
 import copy
 import discord
@@ -6,12 +7,16 @@ from discord.ext import commands
 import logging
 from src.helpers import *
 import time
+from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from main import CustomBot
+
 
 class Wordy(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: CustomBot):
         self.bot = bot
 
     @app_commands.command(name="wordy", description="Start a game of Wordy")
@@ -123,5 +128,5 @@ class Wordy(commands.Cog):
                     logger.warning(f"Message not found : {e}")
 
 
-async def setup(bot):
+async def setup(bot: CustomBot):
     await bot.add_cog(Wordy(bot))

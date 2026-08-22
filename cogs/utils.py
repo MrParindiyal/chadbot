@@ -1,15 +1,21 @@
+from __future__ import annotations
 import asyncio
 import discord
 from discord import app_commands
 from discord.ext import commands
 import logging
 from src.gemini import *
+from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
 
+if TYPE_CHECKING:
+    from main import CustomBot
+
+
 class Utility(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: CustomBot):
         self.bot = bot
 
     @app_commands.command(name="ping", description="Returns the bot's gateway latency")
@@ -55,5 +61,5 @@ class Utility(commands.Cog):
         await interaction.edit_original_response(content=response)
 
 
-async def setup(bot):
+async def setup(bot: CustomBot):
     await bot.add_cog(Utility(bot))

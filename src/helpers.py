@@ -1,3 +1,4 @@
+from __future__ import annotations
 import asyncio
 import discord
 from discord.ext import commands
@@ -5,8 +6,12 @@ import logging
 import random
 from src.config import *
 import time
+from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from main import CustomBot
 
 try:
     with open("./data/approved.txt", "r") as f:
@@ -44,11 +49,11 @@ def remove_whitelisted_user(userid: str) -> bool:
     return True
 
 
-def pick_random_word():
+def pick_random_word() -> str:
     return random.choice(WORDS)
 
 
-def get_row_by_letter(keyboard, alphabet):
+def get_row_by_letter(keyboard: dict, alphabet: str) -> str:
     return keyboard["track"][alphabet]
 
 
@@ -61,7 +66,7 @@ def return_formatted_row(row_num: int, keyboard: dict) -> str:
     return out
 
 
-def set_explored_color(keyboard, letter, color):
+def set_explored_color(keyboard: dict, letter: str, color: str):
     letter = letter.upper()
     row = get_row_by_letter(keyboard, letter)
 
@@ -82,18 +87,18 @@ def set_explored_color(keyboard, letter, color):
         logger.warning(f"Wrong color was provided : {color}")
 
 
-def flush_game_data(bot: commands.Bot):
+def flush_game_data(bot: CustomBot):
     bot.wordy_active = False
     bot.wordy_word = ""
     bot.wordy_guesses = []
     bot.wordy_message = None
     bot.wordy_author = None
-    bot.explored = None
+    bot.explored = {}
     bot.unix_end_timer = -1
     bot.wordy_timer_task = None
 
 
-async def background_timer_task(bot_instance, time_to_sleep):
+async def background_timer_task(bot_instance: CustomBot, time_to_sleep: int):
     try:
         await asyncio.sleep(time_to_sleep)
         await end_game_helper(
@@ -107,13 +112,13 @@ async def background_timer_task(bot_instance, time_to_sleep):
 
 
 def create_wordy_embed(
-    guesses,
-    target_word,
-    explored,
-    player,
-    end_time=None,
-    time_left=None,
-    game_over=False,
+    guesses: list[str],
+    target_word: str,
+    explored: dict[str, dict[str, str]],
+    player: discord.User | discord.Member | None,
+    end_time: int | None = None,
+    time_left: float | int | None = None,
+    game_over: bool = False,
 ):
     if game_over and time_left is not None:
         mins, secs = divmod(max(0, int(time_left)), 60)
@@ -179,7 +184,10 @@ def create_wordy_embed(
 
 
 async def end_game_helper(
-    bot: commands.Bot, interaction: discord.Interaction, timed_out, is_winner
+    bot: CustomBot,
+    interaction: discord.Interaction | None,
+    timed_out: bool,
+    is_winner: bool,
 ):
     if not bot.wordy_active and interaction != None:
         if not interaction.response.is_done():
@@ -236,10 +244,10 @@ async def end_game_helper(
 
 
 class WordyEndButton(discord.ui.View):
-    def __init__(self, bot_instance, player):
+    def __init__(self, bot_instance: CustomBot, player: discord.User | discord.Member):
         super().__init__(timeout=None)
         self.bot = bot_instance
-        self.player: discord.User = player
+        self.player = player
 
     @discord.ui.button(
         label="End Game", style=discord.ButtonStyle.danger, custom_id="end_wordy_game"
