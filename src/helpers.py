@@ -96,6 +96,7 @@ def flush_game_data(bot: CustomBot):
     bot.explored = {}
     bot.unix_end_timer = -1
     bot.wordy_timer_task = None
+    bot.difficulty = "medium"
 
 
 async def background_timer_task(bot_instance: CustomBot, time_to_sleep: int):
@@ -114,6 +115,7 @@ async def background_timer_task(bot_instance: CustomBot, time_to_sleep: int):
 def create_wordy_embed(
     guesses: list[str],
     target_word: str,
+    difficulty: str,
     explored: dict[str, dict[str, str]],
     player: discord.User | discord.Member | None,
     end_time: int | None = None,
@@ -132,7 +134,8 @@ def create_wordy_embed(
 
     embed = discord.Embed(
         title=":green_square: Discord Wordy :yellow_square:",
-        description=f"""Guess the 5-letter word! Type your guesses in chat.\n
+        description=f"""Guess the 5-letter word! Type your guesses in chat.
+        Difficulty : `{difficulty}`
         **Time Remaining:** {time_display}\n\n""",
         color=discord.Color.blurple(),
     )
@@ -202,6 +205,7 @@ async def end_game_helper(
     embed = create_wordy_embed(
         bot.wordy_guesses,
         bot.wordy_word,
+        bot.difficulty,
         bot.explored,
         bot.wordy_author,
         bot.unix_end_timer,

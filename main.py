@@ -55,6 +55,7 @@ class CustomBot(commands.Bot):
         self.explored: dict[str, dict[str, str]] = {}
         self.unix_end_timer: int = -1
         self.wordy_timer_task: Task[None] | None = None
+        self.difficulty: str = "medium"
 
     async def on_ready(self):
         logger.info(f"Logged in successfully as {self.user} (ID: {self.user.id})")

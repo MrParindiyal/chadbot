@@ -20,8 +20,24 @@ class Wordy(commands.Cog):
         self.bot = bot
 
     @app_commands.command(name="wordy", description="Start a game of Wordy")
-    @app_commands.describe(image_mode="Substitue keyboard with an image")
-    async def wordy(self, interaction: discord.Interaction, image_mode: bool = False):
+    @app_commands.describe(
+        timer_difficulty="Set timer for game",
+        image_mode="Substitue keyboard with an image",
+    )
+    @app_commands.choices(
+        timer_difficulty=[
+            app_commands.Choice(name="Easy (5 min)", value="easy"),
+            app_commands.Choice(name="Medium (3 min)", value="medium"),
+            app_commands.Choice(name="Hard (1.5 min)", value="hard"),
+        ]
+    )
+    async def wordy(
+        self,
+        interaction: discord.Interaction,
+        timer_difficulty: app_commands.Choice[str] = None,
+        image_mode: bool = False,
+    ):
+        difficulty = timer_difficulty.value if timer_difficulty else "medium"
         if self.bot.wordy_active:
             await interaction.response.send_message(
                 ":x: A Wordy game is already ongoing! Please wait for it to finish or end it.",
@@ -34,10 +50,13 @@ class Wordy(commands.Cog):
         self.bot.wordy_guesses = []
         self.bot.wordy_author = interaction.user
         self.bot.explored = copy.deepcopy(KEYBOARD)
-        self.bot.unix_end_timer = int(time.time() + WORDY_TIMER)
+        self.bot.unix_end_timer = int(time.time() + WORDY_TIMER[difficulty])
+        self.bot.difficulty = difficulty
+
         initial_embed = create_wordy_embed(
             [],
             self.bot.wordy_word,
+            self.bot.difficulty,
             self.bot.explored,
             interaction.user,
             self.bot.unix_end_timer,
@@ -48,7 +67,7 @@ class Wordy(commands.Cog):
         self.bot.wordy_message = await interaction.original_response()
 
         self.bot.wordy_timer_task = asyncio.create_task(
-            background_timer_task(self.bot, WORDY_TIMER)
+            background_timer_task(self.bot, WORDY_TIMER[difficulty])
         )
 
     @commands.Cog.listener()
@@ -113,6 +132,7 @@ class Wordy(commands.Cog):
                 updated_embed = create_wordy_embed(
                     self.bot.wordy_guesses,
                     self.bot.wordy_word,
+                    self.bot.difficulty,
                     self.bot.explored,
                     message.author,
                     self.bot.unix_end_timer,
