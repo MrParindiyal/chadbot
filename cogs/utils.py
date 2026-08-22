@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.__version__ import *
 import asyncio
 import discord
 from discord import app_commands
@@ -22,6 +23,14 @@ class Utility(commands.Cog):
     async def ping(self, interaction: discord.Interaction):
         latency_ms = round(self.bot.latency * 1000, 2)
         await interaction.response.send_message(f"pong! ({latency_ms} ms)")
+
+    @app_commands.command(
+        name="version", description="Bot's version and What's New? info"
+    )
+    async def version(self, interaction: discord.Interaction):
+        await interaction.response.send_message(f"""
+            This instance of bot is running `v{VERSION_INFO}` !\n{WHATS_NEW}
+            """)
 
     @app_commands.command(name="ask", description="Ask questions to the AI underlords")
     @app_commands.describe(text="Type your question here")
