@@ -1,6 +1,5 @@
 from __future__ import annotations
 import asyncio
-import copy
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -38,36 +37,46 @@ class Wordy(commands.Cog):
         image_mode: bool = False,
     ):
         difficulty = timer_difficulty.value if timer_difficulty else "medium"
-        if self.bot.wordy_active:
+        if self.bot.wordy_games.get(interaction.user.id) != None:
             await interaction.response.send_message(
                 ":x: A Wordy game is already ongoing! Please wait for it to finish or end it.",
                 ephemeral=True,
             )
             return
 
-        self.bot.wordy_active = True
-        self.bot.wordy_word = pick_random_word()
-        self.bot.wordy_guesses = []
-        self.bot.wordy_author = interaction.user
-        self.bot.explored = copy.deepcopy(KEYBOARD)
-        self.bot.unix_end_timer = int(time.time() + WORDY_TIMER[difficulty])
-        self.bot.difficulty = difficulty
+        # self.bot.wordy_active = True
+        # self.bot.wordy_word = pick_random_word()
+        # self.bot.wordy_guesses = []
+        # self.bot.wordy_author = interaction.user
+        # self.bot.explored = copy.deepcopy(KEYBOARD)
+        # self.bot.unix_end_timer = int(time.time() + WORDY_TIMER[difficulty])
+        # self.bot.difficulty = difficulty
+
+        game = WordyGame(self.bot, interaction, difficulty)
+        self.bot.wordy_games[interaction.user.id] = game
 
         initial_embed = create_wordy_embed(
             [],
-            self.bot.wordy_word,
-            self.bot.difficulty,
-            self.bot.explored,
+            game.wordy_word,
+            game.difficulty,
+            game.explored,
             interaction.user,
-            self.bot.unix_end_timer,
+            game.unix_end_timer,
         )
-        view = WordyEndButton(self.bot, interaction.user)
+
+        view = WordyEndButton(game)
 
         await interaction.response.send_message(embed=initial_embed, view=view)
-        self.bot.wordy_message = await interaction.original_response()
+        game.wordy_message = await interaction.original_response()
+        thread = await game.wordy_message.create_thread(
+            name=f"Wordy game for {game.player.display_name}", reason="WordyGameThread"
+        )
+        game.threadid = game.wordy_message.id
+        message = await thread.send(f"{game.player.mention}")
+        await message.edit(content="Send your guesses here")
 
-        self.bot.wordy_timer_task = asyncio.create_task(
-            background_timer_task(self.bot, WORDY_TIMER[difficulty])
+        game.wordy_timer_task = asyncio.create_task(
+            background_timer_task(game, WORDY_TIMER[difficulty])
         )
 
     @commands.Cog.listener()
@@ -75,13 +84,14 @@ class Wordy(commands.Cog):
         if message.author.bot or not message.guild:
             return
 
-        if self.bot.wordy_active and message.author.id == self.bot.wordy_author.id:
+        if self.bot.wordy_games.get(message.author.id) != None:
             content = message.content.strip()
+            game = self.bot.wordy_games.get(message.author.id)
 
             if (
                 content.isalpha()
                 and not content.startswith("!")
-                and self.bot.wordy_active
+                and message.channel.id == game.threadid
             ):
 
                 if len(content) != 5:
@@ -91,10 +101,8 @@ class Wordy(commands.Cog):
                         logger.warning(
                             f"Error while deleting guess : {e.status} {e.text} : {e.response}"
                         )
-
-                    await message.channel.send(
+                    await message.reply(
                         f"{message.author.mention} :warning: Game is ongoing. This word does not qualify as a guess (must be exactly 5 letters).",
-                        delete_after=5,
                     )
                     await self.bot.process_commands(message)
                     return
@@ -107,41 +115,41 @@ class Wordy(commands.Cog):
                         delete_after=2.5,
                     )
                     return
-                try:
-                    await message.delete(delay=1.8)
-                except discord.Forbidden as e:
-                    logger.warning(
-                        f"Message deletion failed: {e.status} {e.text} : {e.response}"
-                    )
+                # try:
+                #     await message.delete(delay=1.8)
+                # except discord.Forbidden as e:
+                #     logger.warning(
+                #         f"Message deletion failed: {e.status} {e.text} : {e.response}"
+                #     )
 
-                self.bot.wordy_guesses.append(guess)
+                game.wordy_guesses.append(guess)
 
-                is_winner = guess == self.bot.wordy_word
-                guess_exhausted = len(self.bot.wordy_guesses) >= 6
+                is_winner = guess == game.wordy_word
+                guess_exhausted = len(game.wordy_guesses) >= 6
 
                 if is_winner:
                     await end_game_helper(
-                        self.bot, interaction=None, timed_out=False, is_winner=True
+                        game, interaction=None, timed_out=False, is_winner=True
                     )
                     return
                 elif guess_exhausted:
                     await end_game_helper(
-                        self.bot, interaction=None, timed_out=False, is_winner=False
+                        game, interaction=None, timed_out=False, is_winner=False
                     )
 
                 updated_embed = create_wordy_embed(
-                    self.bot.wordy_guesses,
-                    self.bot.wordy_word,
-                    self.bot.difficulty,
-                    self.bot.explored,
+                    game.wordy_guesses,
+                    game.wordy_word,
+                    game.difficulty,
+                    game.explored,
                     message.author,
-                    self.bot.unix_end_timer,
+                    game.unix_end_timer,
                 )
 
-                view = WordyEndButton(self.bot, self.bot.wordy_author)
+                view = WordyEndButton(game)
 
                 try:
-                    await self.bot.wordy_message.edit(embed=updated_embed, view=view)
+                    await game.wordy_message.edit(embed=updated_embed, view=view)
                 except discord.HTTPException as e:
                     logger.warning(f"Issue with embeds", exc_info=e)
                 except AttributeError as e:

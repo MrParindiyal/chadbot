@@ -1,9 +1,9 @@
-from asyncio import Task
 from dotenv import load_dotenv
 import discord
 from discord import app_commands
 from discord.ext import commands
 from google.genai.errors import APIError, ClientError
+from src.helpers import WordyGame
 import logging
 from logging.handlers import RotatingFileHandler
 import os
@@ -47,15 +47,7 @@ class CustomBot(commands.Bot):
         )
         self.tree.error(self.on_app_command_error)
 
-        self.wordy_active: bool = False
-        self.wordy_word: str = ""
-        self.wordy_guesses: list[str] = []
-        self.wordy_message: discord.InteractionMessage | None = None
-        self.wordy_author: discord.User | discord.Member | None = None
-        self.explored: dict[str, dict[str, str]] = {}
-        self.unix_end_timer: int = -1
-        self.wordy_timer_task: Task[None] | None = None
-        self.difficulty: str = "medium"
+        self.wordy_games: dict[int, WordyGame] = {}
 
     async def on_ready(self):
         logger.info(f"Logged in successfully as {self.user} (ID: {self.user.id})")

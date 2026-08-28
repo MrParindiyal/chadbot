@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import copy
 import discord
 from discord.ext import commands
 import logging
@@ -87,29 +88,26 @@ def set_explored_color(keyboard: dict, letter: str, color: str):
         logger.warning(f"Wrong color was provided : {color}")
 
 
-def flush_game_data(bot: CustomBot):
-    bot.wordy_active = False
-    bot.wordy_word = ""
-    bot.wordy_guesses = []
-    bot.wordy_message = None
-    bot.wordy_author = None
-    bot.explored = {}
-    bot.unix_end_timer = -1
-    bot.wordy_timer_task = None
-    bot.difficulty = "medium"
+async def flush_game_data(game: WordyGame):
+    bot = game.bot
+    guild = bot.get_guild(game.guildid)
+    thread = guild.get_channel_or_thread(game.threadid)
+    await thread.delete()
+    game.threadid = None
+    del bot.wordy_games[game.player.id]
 
 
-async def background_timer_task(bot_instance: CustomBot, time_to_sleep: int):
+async def background_timer_task(game_instance: WordyGame, time_to_sleep: int):
     try:
         await asyncio.sleep(time_to_sleep)
         await end_game_helper(
-            bot_instance, interaction=None, timed_out=True, is_winner=False
+            game_instance, interaction=None, timed_out=True, is_winner=False
         )
     except asyncio.CancelledError:
         pass
     except Exception as e:
         logger.warning(f"Error in background_timer_task : {e}", exc_info=e)
-        flush_game_data(bot_instance)
+        await flush_game_data(game_instance)
 
 
 def create_wordy_embed(
@@ -187,28 +185,28 @@ def create_wordy_embed(
 
 
 async def end_game_helper(
-    bot: CustomBot,
+    game: WordyGame,
     interaction: discord.Interaction | None,
     timed_out: bool,
     is_winner: bool,
 ):
-    if not bot.wordy_active and interaction != None:
+    if not game.wordy_active and interaction != None:
         if not interaction.response.is_done():
             await interaction.response.send_message(
                 "There is no active wordy game running right now.", ephemeral=True
             )
         return
 
-    player = bot.wordy_author
-    time_left = max(0, bot.unix_end_timer - time.time()) if not timed_out else 0
+    player = game.player
+    time_left = max(0, game.unix_end_timer - time.time()) if not timed_out else 0
 
     embed = create_wordy_embed(
-        bot.wordy_guesses,
-        bot.wordy_word,
-        bot.difficulty,
-        bot.explored,
-        bot.wordy_author,
-        bot.unix_end_timer,
+        game.wordy_guesses,
+        game.wordy_word,
+        game.difficulty,
+        game.explored,
+        game.wordy_author,
+        game.unix_end_timer,
         time_left,
         game_over=True,
     )
@@ -216,42 +214,43 @@ async def end_game_helper(
     if is_winner:
         embed.color = discord.Color.green()
         embed.set_footer(
-            text=f"🎉 Won by {player.display_name}! The word was {bot.wordy_word.upper()}."
+            text=f"🎉 Won by {player.display_name}! The word was {game.wordy_word.upper()}."
         )
 
     elif timed_out:
         embed.color = discord.Color.darker_grey()
-        embed.set_footer(text=f"⏰ Time's up! The word was {bot.wordy_word.upper()}.")
+        embed.set_footer(text=f"⏰ Time's up! The word was {game.wordy_word.upper()}.")
 
     else:
         embed.color = discord.Color.red()
-        embed.set_footer(text=f"💀 Game Over! The word was {bot.wordy_word.upper()}.")
+        embed.set_footer(text=f"💀 Game Over! The word was {game.wordy_word.upper()}.")
 
     current_task = asyncio.current_task()
     if (
-        bot.wordy_timer_task
-        and not bot.wordy_timer_task.done()
-        and bot.wordy_timer_task != current_task
+        game.wordy_timer_task
+        and not game.wordy_timer_task.done()
+        and game.wordy_timer_task != current_task
     ):
-        bot.wordy_timer_task.cancel()
-    bot.wordy_timer_task = None
+        game.wordy_timer_task.cancel()
+    game.wordy_timer_task = None
 
     try:
         if interaction and not interaction.response.is_done():
             await interaction.response.edit_message(embed=embed, view=None)
-        elif bot.wordy_message:
-            await bot.wordy_message.edit(embed=embed, view=None)
+        elif game.wordy_message:
+            await game.wordy_message.edit(embed=embed, view=None)
     except discord.HTTPException:
         pass
 
-    flush_game_data(bot)
+    await flush_game_data(game)
 
 
 class WordyEndButton(discord.ui.View):
-    def __init__(self, bot_instance: CustomBot, player: discord.User | discord.Member):
+    def __init__(self, game_instance: WordyGame):
         super().__init__(timeout=None)
-        self.bot = bot_instance
-        self.player = player
+        self.game = game_instance
+        self.bot = self.game.bot
+        self.player = self.game.player
 
     @discord.ui.button(
         label="End Game", style=discord.ButtonStyle.danger, custom_id="end_wordy_game"
@@ -269,4 +268,28 @@ class WordyEndButton(discord.ui.View):
             )
             return
 
-        await end_game_helper(self.bot, interaction, timed_out=False, is_winner=False)
+        await end_game_helper(self.game, interaction, timed_out=False, is_winner=False)
+
+
+class WordyGame:
+    def __init__(
+        self, bot: CustomBot, interaction: discord.Interaction, difficulty: str
+    ):
+        self.bot: CustomBot = bot
+
+        self.interaction: discord.Interaction = interaction
+        self.channelid: int | None = interaction.channel_id
+        self.guildid: int | None = interaction.guild_id
+        self.player: discord.User | discord.Member = interaction.user
+        self.embed: discord.Embed | None = None
+        self.image: bool = False
+        self.threadid: int | None = None
+        self.wordy_active: bool = True
+        self.wordy_word: str = pick_random_word()
+        self.wordy_guesses: list[str] = []
+        self.wordy_message: discord.InteractionMessage | None = None
+        self.wordy_author = self.player
+        self.explored: dict[str, dict[str, str]] = copy.deepcopy(KEYBOARD)
+        self.unix_end_timer: int = int(time.time() + WORDY_TIMER[difficulty])
+        self.wordy_timer_task: asyncio.Task[None] | None = None
+        self.difficulty: str = difficulty
