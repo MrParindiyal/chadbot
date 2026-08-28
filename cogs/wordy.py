@@ -4,8 +4,13 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import logging
-from src.helpers import *
-import time
+from src.config import ALLOWED_GUESSES, WORDY_TIMER
+from src.wordy import (
+    WordyEndButton,
+    WordyGame,
+    background_timer_task,
+    create_wordy_embed,
+    end_game_helper)
 from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
@@ -43,14 +48,6 @@ class Wordy(commands.Cog):
                 ephemeral=True,
             )
             return
-
-        # self.bot.wordy_active = True
-        # self.bot.wordy_word = pick_random_word()
-        # self.bot.wordy_guesses = []
-        # self.bot.wordy_author = interaction.user
-        # self.bot.explored = copy.deepcopy(KEYBOARD)
-        # self.bot.unix_end_timer = int(time.time() + WORDY_TIMER[difficulty])
-        # self.bot.difficulty = difficulty
 
         game = WordyGame(self.bot, interaction, difficulty)
         self.bot.wordy_games[interaction.user.id] = game
@@ -101,10 +98,10 @@ class Wordy(commands.Cog):
                         logger.warning(
                             f"Error while deleting guess : {e.status} {e.text} : {e.response}"
                         )
-                    await message.reply(
+                    await message.channel.send(
                         f"{message.author.mention} :warning: Game is ongoing. This word does not qualify as a guess (must be exactly 5 letters).",
+                        delete_after=6
                     )
-                    await self.bot.process_commands(message)
                     return
 
                 guess = content.lower()
@@ -115,12 +112,6 @@ class Wordy(commands.Cog):
                         delete_after=2.5,
                     )
                     return
-                # try:
-                #     await message.delete(delay=1.8)
-                # except discord.Forbidden as e:
-                #     logger.warning(
-                #         f"Message deletion failed: {e.status} {e.text} : {e.response}"
-                #     )
 
                 game.wordy_guesses.append(guess)
 

@@ -3,7 +3,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import logging
-from src.helpers import *
+from src.utils import *
 from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)

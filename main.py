@@ -3,7 +3,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from google.genai.errors import APIError, ClientError
-from src.helpers import WordyGame
+from src.wordy import WordyGame
 import logging
 from logging.handlers import RotatingFileHandler
 import os

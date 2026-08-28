@@ -1,5 +1,5 @@
-VERSION_INFO = "2.2.2"
+VERSION_INFO = "2.2.3"
 
 WHATS_NEW = """
-- [DEV] Multiple Wordy game thread support init
+- [DEV/REFACTOR] Clean and organize helper classes/methods
 """
