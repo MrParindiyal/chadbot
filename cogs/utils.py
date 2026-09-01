@@ -6,6 +6,7 @@ from discord import app_commands
 from discord.ext import commands
 import logging
 from src.gemini import *
+from src.media_utils import bg_extractor
 from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
@@ -68,6 +69,13 @@ class Utility(commands.Cog):
         await interaction.response.defer(thinking=True)
         response = await asyncio.to_thread(generative_search, str(text))
         await interaction.edit_original_response(content=response)
+
+    @app_commands.command(name="insta", description="Share reels from Instagram")
+    @app_commands.describe(link="Reel link to share")
+    async def insta(self, interaction: discord.Interaction, link: str):
+        await interaction.response.send_message(content=f":white_check_mark: Queued!")
+
+        asyncio.create_task(bg_extractor(interaction, link))
 
 
 async def setup(bot: CustomBot):

@@ -114,6 +114,8 @@ EMOJIS = {
     "unexplored_X": "<:unexplored_X:1534700994569568267>",
     "unexplored_Y": "<:unexplored_Y:1534700996972908645>",
     "unexplored_Z": "<:unexplored_Z:1534700999099420732>",
+    "loading": "<a:loading:1544395283532877865>",
+    "catJam": "<a:catJam:1544395280898728006>",
 }
 """
 Application emojis, with their emoji ID, extracted from 

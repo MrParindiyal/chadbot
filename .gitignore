@@ -8,3 +8,4 @@ test/*
 *.log
 *.log.*
 __config.py
+data/downloads/stage1/

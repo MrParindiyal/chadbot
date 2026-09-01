@@ -2,7 +2,8 @@ black
 discord.py
 flask
 google-genai
+gunicorn
 pillow
 python-dotenv
-gunicorn
 ratelimit
+yt-dlp
