@@ -127,6 +127,7 @@ class Wordy(commands.Cog):
                     await end_game_helper(
                         game, interaction=None, timed_out=False, is_winner=False
                     )
+                    return
 
                 updated_embed = create_wordy_embed(
                     game.wordy_guesses,
