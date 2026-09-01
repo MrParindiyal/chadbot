@@ -10,7 +10,8 @@ from src.wordy import (
     WordyGame,
     background_timer_task,
     create_wordy_embed,
-    end_game_helper)
+    end_game_helper,
+)
 from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
@@ -41,7 +42,6 @@ class Wordy(commands.Cog):
         timer_difficulty: app_commands.Choice[str] = None,
         image_mode: bool = False,
     ):
-        difficulty = timer_difficulty.value if timer_difficulty else "medium"
         if self.bot.wordy_games.get(interaction.user.id) != None:
             await interaction.response.send_message(
                 ":x: A Wordy game is already ongoing! Please wait for it to finish or end it.",
@@ -49,6 +49,18 @@ class Wordy(commands.Cog):
             )
             return
 
+        channel = interaction.channel
+
+        if isinstance(channel, discord.PartialMessageable):
+            channel = await interaction.guild.fetch_channel(channel.id)
+
+        if isinstance(channel, discord.Thread):
+            await interaction.response.send_message(
+                ":x: Cannot start new game inside a thread!", ephemeral=True
+            )
+            return
+
+        difficulty = timer_difficulty.value if timer_difficulty else "medium"
         game = WordyGame(self.bot, interaction, difficulty)
         self.bot.wordy_games[interaction.user.id] = game
 
@@ -100,7 +112,7 @@ class Wordy(commands.Cog):
                         )
                     await message.channel.send(
                         f"{message.author.mention} :warning: Game is ongoing. This word does not qualify as a guess (must be exactly 5 letters).",
-                        delete_after=6
+                        delete_after=6,
                     )
                     return
 
