@@ -45,9 +45,12 @@ class WordyGame:
     async def flush_game_data(self) -> None:
         bot = self.bot
         guild = bot.get_guild(self.guildid)
-        thread = guild.get_channel_or_thread(
-            self.threadid
-        )  # TODO: replace with fetch_channel if None is found
-        await thread.delete()
+        try:
+            thread = guild.get_channel_or_thread(  # TODO: replace with fetch_channel if None is found
+                self.threadid
+            )
+            await thread.delete()
+        except AttributeError:
+            logger.warning("Thread could not be found!")
         self.threadid = None
         del bot.wordy_games[self.player.id]
