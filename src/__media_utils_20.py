@@ -4,6 +4,7 @@ import discord
 import json
 import logging
 import os
+import ratelimit
 import subprocess
 import urllib.parse
 import yt_dlp
@@ -84,6 +85,7 @@ def download_ig_media(
         return {"success": False, "error": str(e)}
 
 
+@ratelimit.limits(calls=4, period=60)
 def compressor(
     input_file: str,
     target_size=19.6,
@@ -220,17 +222,14 @@ async def bg_extractor(interaction: discord.Interaction, url: str):
         )
 
     try:
-        await interaction.delete_original_response()
-    except Exception as e:
-        logger.debug("Failed to delete original response", exc_info=e)
-
-    try:
-        await interaction.channel.send(file=discord.File(final_file))
+        await interaction.edit_original_response(
+            content=None, attachments=[discord.File(final_file)]
+        )
     except Exception as e:
         logger.exception(
             f"Failed to send the file. RawSize:{file_size:.2f}MB | CompressedSize:{(os.path.getsize(final_file) / (1024 * 1024)):.2f}MB"
         )
-        await interaction.channel.send(
+        await interaction.edit_original_response(
             content=f":x: Processing Failed :( {str(e)[:75]}"
         )
     finally:

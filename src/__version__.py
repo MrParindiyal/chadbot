@@ -1,5 +1,6 @@
-VERSION_INFO = "2.4"
+VERSION_INFO = "2.4.1"
 
 WHATS_NEW = """
-- [DEV] Download and compress to share media from Instagram reel URLs.
+- [FEAT] Download and compress to share media directly from Instagram reel URLs.
+- [DEV] Ratelimited the compressor.
 """
