@@ -6,4 +6,4 @@ gunicorn
 pillow
 python-dotenv
 ratelimit
-yt-dlp
+yt-dlp[default,curl-cffi]

@@ -23,13 +23,14 @@ def download_ig_media(
     target_index = query_param.get("img_index", ["1"])[0]
 
     ydl_opts = {
-        "outtmpl": os.path.join(output_dir, f"{uid}_%(id)s_{interactionid}.%(ext)s"),
+        "outtmpl": os.path.join(output_dir, f"{uid}_%(id).8s_{interactionid}.%(ext)s"),
         "format": "bv*+ba/b",  # best audio + video, or single best stream
         "merge_output_format": "mp4",  # merge separate streams into MP4 when possible.
         "ffmpeg_location": "/usr/local/bin/ffmpeg",  # path to ffmpeg bin
         "quiet": True,
         "no_warnings": True,
         "playlist_items": target_index,
+        # "extractor_args": {"generic": {"impersonate": ["chrome"]}},
     }
 
     try:
