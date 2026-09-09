@@ -1,3 +1,4 @@
+from aiohttp import ClientConnectorError
 from dotenv import load_dotenv
 import discord
 from discord import app_commands
@@ -23,10 +24,33 @@ console_handler.setFormatter(formatter)
 
 logger.addHandler(file_handler)
 logger.addHandler(console_handler)
+
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.WARNING)
 logging.getLogger("werkzeug").setLevel(logging.WARNING)
-logger = logging.getLogger(__name__)
+logging.getLogger("discord.client").setLevel(logging.WARNING)
+
+
+class DiscordConnectionTracebackFilter(logging.Filter):
+    def filter(self, record):
+        if record.name != "discord.client":
+            return True
+
+        if not record.exc_info:
+            return True
+
+        exc = record.exc_info[1]
+        if isinstance(exc, ClientConnectorError):
+            record.exc_info = None
+            record.exc_text = None
+
+        return True
+
+
+for handler in logger.handlers:
+    handler.addFilter(DiscordConnectionTracebackFilter())
+
+
 logger.info("Startin up...")
 
 
