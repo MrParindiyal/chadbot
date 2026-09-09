@@ -89,7 +89,7 @@ def download_ig_media(
 @ratelimit.limits(calls=4, period=60)
 def compressor(
     input_file: str,
-    target_size=19.6,
+    target_size=9.6,
     output_file="./data/downloads/compressed/out_compressed.mp4",
 ) -> str:
 
@@ -207,7 +207,7 @@ async def bg_extractor(interaction: discord.Interaction, url: str):
     file_path = result["file_path"]
     file_size = os.path.getsize(file_path) / (1024 * 1024)
 
-    if file_size < 20:
+    if file_size < 10:
         final_file = file_path
     else:
         await interaction.edit_original_response(
