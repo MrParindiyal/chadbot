@@ -53,4 +53,4 @@ class WordyGame:
         except AttributeError:
             logger.warning("Thread could not be found!")
         self.threadid = None
-        del bot.wordy_games[self.player.id]
+        bot.wordy_games.pop(self.player.id, None)
