@@ -200,7 +200,10 @@ async def bg_extractor(interaction: discord.Interaction, url: str):
         )
         await interaction.delete_original_response()
         await interaction.channel.send(
-            content=f":x: {interaction.user.mention} Failed to process request : {result["error"][:100]}",
+            content=f"""
+                :x: {interaction.user.mention} Failed to process request : {result["error"][:100]}...
+                \nHere's the source URL : {url}
+            """,
         )
         return
 
