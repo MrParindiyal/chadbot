@@ -6,4 +6,5 @@ gunicorn
 pillow
 python-dotenv
 ratelimit
+urlextract 
 yt-dlp[default,curl-cffi]

@@ -1,5 +1,5 @@
-VERSION_INFO = "2.4.3"
+VERSION_INFO = "2.5"
 
 WHATS_NEW = """
-- [DEV] Minor bug fixes
+- [FEAT] Auto detect singular links, fetch and send them instead of manually calling `/insta`
 """
