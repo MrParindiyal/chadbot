@@ -150,13 +150,9 @@ class Utility(commands.Cog):
                 )
                 await message.delete()
             except discord.Forbidden:
-                await ack.edit(
-                    content=f"Missing permissions to delete message.", delete_after=15
-                )
+                await ack.edit(content=f"Missing permissions to delete message.")
             except discord.NotFound:
-                await ack.edit(
-                    content=f"Original URL message not found!", delete_after=15
-                )
+                await ack.edit(content=f"Original URL message not found!")
             except Exception as e:
                 logger.exception(
                     f"Failed to send the file. RawSize:{file_size:.2f}MB | CompressedSize:{(os.path.getsize(final_file) / (1024 * 1024)):.2f}MB"
