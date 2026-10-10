@@ -13,6 +13,9 @@ IGNORE_DOMAINS = [
     "klipy",
     "tenor",
     "giphy",
+    "steam",
+    "github",
+    "steampowered"
 ]
 
 
