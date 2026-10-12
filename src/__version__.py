@@ -1,4 +1,4 @@
-VERSION_INFO = "2.5.3"
+VERSION_INFO = "2.5.4"
 
 WHATS_NEW = """
 - [FEAT] Auto detect singular links, fetch and send them instead of manually calling `/insta`

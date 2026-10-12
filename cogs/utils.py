@@ -93,10 +93,11 @@ class Utility(commands.Cog):
             except:
                 logger.warning(f"URLextractor failed...")
                 return
+            if len(links) != 1:
+                return
 
             urldata = tldextract.extract(links[0])
-
-            if len(links) != 1 or urldata.domain in IGNORE_DOMAINS:
+            if urldata.domain in IGNORE_DOMAINS:
                 return
 
             message_content = message_content.replace(links[0], "")
