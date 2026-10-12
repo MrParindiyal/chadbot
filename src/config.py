@@ -15,7 +15,14 @@ IGNORE_DOMAINS = [
     "giphy",
     "steam",
     "github",
-    "steampowered"
+    "steampowered",
+    "dialed",
+    "skribbl",
+    "garticphone",
+    "smashkarts",
+    "deadshot",
+    "codenames",
+    "discord",
 ]
 
 
