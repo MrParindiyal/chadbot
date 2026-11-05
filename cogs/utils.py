@@ -7,8 +7,8 @@ import logging
 from src.__version__ import *
 from src.config import EMOJIS, IGNORE_DOMAINS
 from src.gemini import *
-from src.media_utils import bg_extractor, download_ig_media, compressor
-from src.utils import create_media_embed
+from src.media_utils import bg_extractor, download_and_compress
+from src.utils import create_media_embed, CancelButtonUi, SimpleLinkUi
 import tldextract
 from typing import TYPE_CHECKING
 from urlextract import URLExtract
@@ -103,71 +103,147 @@ class Utility(commands.Cog):
             message_content = message_content.replace(links[0], "")
 
             author = message.author
+            stop_event = asyncio.Event()
+            cancel_view = CancelButtonUi(author.id, stop_event, links[0])
+
             content = f"{EMOJIS["loading"]} Attempting to download this..."
+
             updated_embed = create_media_embed(author, content, None, links[0])
-
             ack = await message.reply(
-                mention_author=True, silent=True, embed=updated_embed
+                mention_author=True, silent=True, embed=updated_embed, view=cancel_view
             )
 
-            result = await asyncio.to_thread(
-                download_ig_media, links[0], message.author.id, message.id
-            )
-            if not result["success"]:
-                try:
-                    await ack.delete()
-                except:
-                    pass
-                return
-
-            file_path = result["file_path"]
-            file_size = os.path.getsize(file_path) / (1024 * 1024)
-            if file_size < 20:
-                final_file = file_path
-            else:
-                content = f"{EMOJIS["catJam"]} File too big, compressing... {EMOJIS["loading"]}"
-                updated_embed = create_media_embed(author, content, None, links[0])
-                await ack.edit(embed=updated_embed)
-
-                file_name = "_".join(
-                    str(os.path.basename(file_path))
-                    .removesuffix(".mp4")
-                    .split("_")[1:-1]
+            async def notify_compression():
+                content_compression = f"{EMOJIS["catJam"]} File too big, compressing... {EMOJIS["loading"]}"
+                updated_embed = create_media_embed(
+                    author, content_compression, None, links[0]
                 )
-                final_file = await asyncio.to_thread(
-                    compressor,
-                    file_path,
-                    output_file=f"./data/downloads/compressed/{message.author.id}_{file_name}.compressed_{message.id}.mp4",
-                )
+                await ack.edit(embed=updated_embed, view=cancel_view)
+
+            raw_file, final_file = None, None
 
             try:
+                final_file, raw_file = await download_and_compress(
+                    url=links[0],
+                    uid=author.id,
+                    req_id=message.id,
+                    stop_event=stop_event,
+                    on_compress_start=notify_compression,
+                    timeout=180,
+                )
+
                 updated_embed = create_media_embed(
                     author, None, message_content, links[0]
                 )
-
                 await ack.edit(
                     attachments=[discord.File(final_file)],
                     embed=updated_embed,
+                    view=SimpleLinkUi(links[0]),
                 )
+
                 await message.delete()
+
+            except asyncio.CancelledError:
+                logger.warning(
+                    f"Task aborted! By @{author.display_name} in {message.guild.name} #{message.channel.name}"
+                )
+                await ack.edit(
+                    embed=create_media_embed(
+                        author, ":warning: Aborted by user", None, links[0]
+                    ),
+                    view=SimpleLinkUi(links[0]),
+                    delete_after=15,
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    f"Compressor timed out! {links[0]} by @{author.display_name} in {message.guild.name} #{message.channel.name}"
+                )
+                await ack.edit(
+                    embed=create_media_embed(
+                        author, ":x: Operation timed out", None, links[0]
+                    ),
+                    view=SimpleLinkUi(links[0]),
+                    delete_after=15,
+                )
+            except RuntimeError:
+                await ack.delete()
             except discord.Forbidden:
                 await ack.edit(content=f"Missing permissions to delete message.")
             except discord.NotFound:
                 await ack.edit(content=f"Original URL message not found!")
             except Exception as e:
-                logger.exception(
-                    f"Failed to send the file. RawSize:{file_size:.2f}MB | CompressedSize:{(os.path.getsize(final_file) / (1024 * 1024)):.2f}MB"
-                )
+                logger.exception(f"Failed to send the file.")
                 await ack.edit(
                     content=f":x: Something went wrong :( {str(e)[:75]}",
                     delete_after=15,
                 )
             finally:
-                for path in {file_path, final_file}:
-                    try:
-                        os.remove(path)
-                    except FileNotFoundError:
-                        pass
+                for path in {raw_file, final_file}:
+                    if path and os.path.exists(path):
+                        try:
+                            os.remove(path)
+                        except FileNotFoundError:
+                            pass
+
+            # result = await asyncio.to_thread(
+            #     download_ig_media, links[0], message.author.id, message.id
+            # )
+            # if not result["success"]:
+            #     try:
+            #         await ack.delete()
+            #     except:
+            #         pass
+            #     return
+
+            # file_path = result["file_path"]
+            # file_size = os.path.getsize(file_path) / (1024 * 1024)
+            # if file_size < 20:
+            #     final_file = file_path
+            # else:
+            #     content = f"{EMOJIS["catJam"]} File too big, compressing... {EMOJIS["loading"]}"
+            #     updated_embed = create_media_embed(author, content, None, links[0])
+            #     await ack.edit(embed=updated_embed)
+
+            #     file_name = "_".join(
+            #         str(os.path.basename(file_path))
+            #         .removesuffix(".mp4")
+            #         .split("_")[1:-1]
+            #     )
+            #     final_file = await asyncio.to_thread(
+            #         compressor,
+            #         file_path,
+            #         output_file=f"./data/downloads/compressed/{message.author.id}_{file_name}.compressed_{message.id}.mp4",
+            #     )
+
+            # try:
+            #     updated_embed = create_media_embed(
+            #         author, None, message_content, links[0]
+            #     )
+
+            #     await ack.edit(
+            #         attachments=[discord.File(final_file)],
+            #         embed=updated_embed,
+            #         view=SimpleLinkUi(links[0]),
+            #     )
+            #     await message.delete()
+            # except discord.Forbidden:
+            #     await ack.edit(content=f"Missing permissions to delete message.")
+            # except discord.NotFound:
+            #     await ack.edit(content=f"Original URL message not found!")
+            # except Exception as e:
+            #     logger.exception(
+            #         f"Failed to send the file. RawSize:{file_size:.2f}MB | CompressedSize:{(os.path.getsize(final_file) / (1024 * 1024)):.2f}MB"
+            #     )
+            #     await ack.edit(
+            #         content=f":x: Something went wrong :( {str(e)[:75]}",
+            #         delete_after=15,
+            #     )
+            # finally:
+            #     for path in {file_path, final_file}:
+            #         try:
+            #             os.remove(path)
+            #         except FileNotFoundError:
+            #             pass
 
         return
 
