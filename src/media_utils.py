@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 ratelimiter = AsyncLimiter(5, 60)
 
+
 def download_ig_media(
     url: str,
     uid: int,
@@ -140,7 +141,9 @@ async def compressor(
 
         duration = float(probe_data["format"]["duration"])
 
-        total_bits = target_size * 1024 * 1024 * 8 * 0.96  # container overhead margin ~4.5%
+        total_bits = (
+            target_size * 1024 * 1024 * 8 * 0.96
+        )  # container overhead margin ~4.5%
         total_bitrate = int(total_bits / duration)
         audio_bitrate = 64 if total_bitrate < 350_000 else 96
         video_bitrate = max(64_000, total_bitrate - (audio_bitrate * 1000))
@@ -275,83 +278,6 @@ async def bg_extractor(interaction: discord.Interaction, url: str):
                     os.remove(path)
                 except FileNotFoundError:
                     pass
-
-    # result = await asyncio.to_thread(
-    #     download_ig_media, url, interaction.user.id, interaction.id
-    # )
-
-    # if not result["success"]:
-    #     logger.warning(
-    #         f"{interaction.user} used /insta link:{url} => {result["error"]}"
-    #     )
-    #     await interaction.delete_original_response()
-    #     await interaction.channel.send(
-    #         content=f"""
-    #             :x: {interaction.user.mention} Failed to process request : {result["error"][:100]}...
-    #             \nHere's the source URL : {url}
-    #         """,
-    #     )
-    #     return
-
-    # file_path = result["file_path"]
-    # file_size = os.path.getsize(file_path) / (1024 * 1024)
-
-    # if file_size < 20:
-    #     final_file = file_path
-    # else:
-    #     stop_event = asyncio.Event()
-    #     cancel_view = CancelButtonUi(interaction.user.id, stop_event, url)
-    #     await interaction.edit_original_response(
-    #         content=f"{EMOJIS["catJam"]} File too big, compressing... {EMOJIS["loading"]}",
-    #         view=cancel_view,
-    #     )
-
-    #     file_name = "_".join(
-    #         str(os.path.basename(file_path)).removesuffix(".mp4").split("_")[1:-1]
-    #     )
-    #     output_file_path = f"./data/downloads/compressed/{interaction.user.id}_{file_name}.compressed_{interaction.id}.mp4"
-
-    #     try:
-    #         final_file = await asyncio.wait_for(
-    #             compressor(
-    #                 file_path, output_file=output_file_path, stop_event=stop_event
-    #             ),
-    #             timeout=180,
-    #         )
-    #     except asyncio.TimeoutError:
-    #         logger.warning(
-    #             f"Compressor timed out! {url} by @{interaction.user.display_name} in {interaction.guild.name} #{interaction.channel.name}"
-    #         )
-    #         await interaction.edit_original_response(
-    #             content=f":x: Compressor timed out", view=SimpleLinkUi(url)
-    #         )
-    #         os.remove(file_path)
-    #     except asyncio.CancelledError:
-    #         logger.warning(
-    #             f"Compression aborted! By @{interaction.user.display_name} in {interaction.guild.name} #{interaction.channel.name}"
-    #         )
-    #         await interaction.edit_original_response(
-    #             content=f":warning: Compression aborted by user.",
-    #             view=SimpleLinkUi(url),
-    #         )
-
-    # try:
-    #     await interaction.edit_original_response(
-    #         content=None, attachments=[discord.File(final_file)], view=SimpleLinkUi(url)
-    #     )
-    # except Exception as e:
-    #     logger.exception(
-    #         f"Failed to send the file. RawSize:{file_size:.2f}MB | CompressedSize:{(os.path.getsize(final_file) / (1024 * 1024)):.2f}MB"
-    #     )
-    #     await interaction.edit_original_response(
-    #         content=f":x: Processing Failed :( {str(e)[:75]}"
-    #     )
-    # finally:
-    #     for path in {file_path, final_file}:
-    #         try:
-    #             os.remove(path)
-    #         except FileNotFoundError:
-    #             pass
 
 
 async def download_and_compress(

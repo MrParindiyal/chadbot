@@ -96,35 +96,35 @@ class Utility(commands.Cog):
             if len(links) != 1:
                 return
 
-            urldata = tldextract.extract(links[0])
+            url = links[0]
+
+            urldata = tldextract.extract(url)
             if urldata.domain in IGNORE_DOMAINS:
                 return
 
-            message_content = message_content.replace(links[0], "")
+            message_content = message_content.replace(url, "")
 
             author = message.author
             stop_event = asyncio.Event()
-            cancel_view = CancelButtonUi(author.id, stop_event, links[0])
+            cancel_view = CancelButtonUi(author.id, stop_event, url)
 
             content = f"{EMOJIS["loading"]} Attempting to download this..."
 
-            updated_embed = create_media_embed(author, content, None, links[0])
+            updated_embed = create_media_embed(author, content, None)
             ack = await message.reply(
                 mention_author=True, silent=True, embed=updated_embed, view=cancel_view
             )
 
             async def notify_compression():
                 content_compression = f"{EMOJIS["catJam"]} File too big, compressing... {EMOJIS["loading"]}"
-                updated_embed = create_media_embed(
-                    author, content_compression, None, links[0]
-                )
+                updated_embed = create_media_embed(author, content_compression, None)
                 await ack.edit(embed=updated_embed, view=cancel_view)
 
             raw_file, final_file = None, None
 
             try:
                 final_file, raw_file = await download_and_compress(
-                    url=links[0],
+                    url=url,
                     uid=author.id,
                     req_id=message.id,
                     stop_event=stop_event,
@@ -132,13 +132,11 @@ class Utility(commands.Cog):
                     timeout=180,
                 )
 
-                updated_embed = create_media_embed(
-                    author, None, message_content, links[0]
-                )
+                updated_embed = create_media_embed(author, None, message_content)
                 await ack.edit(
                     attachments=[discord.File(final_file)],
                     embed=updated_embed,
-                    view=SimpleLinkUi(links[0]),
+                    view=SimpleLinkUi(url),
                 )
 
                 await message.delete()
@@ -148,21 +146,17 @@ class Utility(commands.Cog):
                     f"Task aborted! By @{author.display_name} in {message.guild.name} #{message.channel.name}"
                 )
                 await ack.edit(
-                    embed=create_media_embed(
-                        author, ":warning: Aborted by user", None, links[0]
-                    ),
-                    view=SimpleLinkUi(links[0]),
+                    embed=create_media_embed(author, ":warning: Aborted by user", None),
+                    view=SimpleLinkUi(url),
                     delete_after=15,
                 )
             except asyncio.TimeoutError:
                 logger.warning(
-                    f"Compressor timed out! {links[0]} by @{author.display_name} in {message.guild.name} #{message.channel.name}"
+                    f"Compressor timed out! {url} by @{author.display_name} in {message.guild.name} #{message.channel.name}"
                 )
                 await ack.edit(
-                    embed=create_media_embed(
-                        author, ":x: Operation timed out", None, links[0]
-                    ),
-                    view=SimpleLinkUi(links[0]),
+                    embed=create_media_embed(author, ":x: Operation timed out", None),
+                    view=SimpleLinkUi(url),
                     delete_after=15,
                 )
             except RuntimeError:
@@ -184,66 +178,6 @@ class Utility(commands.Cog):
                             os.remove(path)
                         except FileNotFoundError:
                             pass
-
-            # result = await asyncio.to_thread(
-            #     download_ig_media, links[0], message.author.id, message.id
-            # )
-            # if not result["success"]:
-            #     try:
-            #         await ack.delete()
-            #     except:
-            #         pass
-            #     return
-
-            # file_path = result["file_path"]
-            # file_size = os.path.getsize(file_path) / (1024 * 1024)
-            # if file_size < 20:
-            #     final_file = file_path
-            # else:
-            #     content = f"{EMOJIS["catJam"]} File too big, compressing... {EMOJIS["loading"]}"
-            #     updated_embed = create_media_embed(author, content, None, links[0])
-            #     await ack.edit(embed=updated_embed)
-
-            #     file_name = "_".join(
-            #         str(os.path.basename(file_path))
-            #         .removesuffix(".mp4")
-            #         .split("_")[1:-1]
-            #     )
-            #     final_file = await asyncio.to_thread(
-            #         compressor,
-            #         file_path,
-            #         output_file=f"./data/downloads/compressed/{message.author.id}_{file_name}.compressed_{message.id}.mp4",
-            #     )
-
-            # try:
-            #     updated_embed = create_media_embed(
-            #         author, None, message_content, links[0]
-            #     )
-
-            #     await ack.edit(
-            #         attachments=[discord.File(final_file)],
-            #         embed=updated_embed,
-            #         view=SimpleLinkUi(links[0]),
-            #     )
-            #     await message.delete()
-            # except discord.Forbidden:
-            #     await ack.edit(content=f"Missing permissions to delete message.")
-            # except discord.NotFound:
-            #     await ack.edit(content=f"Original URL message not found!")
-            # except Exception as e:
-            #     logger.exception(
-            #         f"Failed to send the file. RawSize:{file_size:.2f}MB | CompressedSize:{(os.path.getsize(final_file) / (1024 * 1024)):.2f}MB"
-            #     )
-            #     await ack.edit(
-            #         content=f":x: Something went wrong :( {str(e)[:75]}",
-            #         delete_after=15,
-            #     )
-            # finally:
-            #     for path in {file_path, final_file}:
-            #         try:
-            #             os.remove(path)
-            #         except FileNotFoundError:
-            #             pass
 
         return
 

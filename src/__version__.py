@@ -1,7 +1,7 @@
-VERSION_INFO = "2.5.4"
+VERSION_INFO = "2.6"
 
 WHATS_NEW = """
-- [FEAT] Auto detect singular links, fetch and send them instead of manually calling `/insta`
-- [DEV] Cleaner/compact info embed 
-- [DEV] Ignore autodownload from URL domains in IGNORE_DOMAINS 
+- [FEAT] Cancel ongoing download / compression.
+- [FEAT] Auto-cancel tasks exceeding 180 seconds.
+
 """

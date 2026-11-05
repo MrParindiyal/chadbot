@@ -49,13 +49,11 @@ def remove_whitelisted_user(user_id: str) -> bool:
     return True
 
 
-def create_media_embed(
-    user: discord.User, title: str | None, caption: str | None, url: str
-):
+def create_media_embed(user: discord.User, title: str | None, caption: str | None):
     embed = discord.Embed(
         color=discord.Color.from_rgb(85, 125, 135),
         title=title,
-        description=f"{caption if caption is not None else ""}\n> _Original by_ : <@{user.id}>\n> _Source_:||{url}||",
+        description=f"{f"**{caption}**" if caption is not None else ""}\n> _Original by_ : <@{user.id}>",
     )
     return embed
 
@@ -160,15 +158,6 @@ class CancelButtonUi(discord.ui.View):
         self.owner_id = owner_id
         self.stop_event = stop_event
         self.url = url
-        # cancel_button = discord.ui.Button(
-        #     label="❌ Abort",
-        #     style=discord.ButtonStyle.red,
-        #     custom_id="cancel",
-        # )
-
-        # cancel_button.callback = self.abort_download
-        # self.add_item(cancel_button)
-
         self.add_item(
             discord.ui.Button(
                 label="🔗Source", style=discord.ButtonStyle.grey, url=self.url
