@@ -53,7 +53,7 @@ def create_media_embed(user: discord.User, title: str | None, caption: str | Non
     embed = discord.Embed(
         color=discord.Color.from_rgb(85, 125, 135),
         title=title,
-        description=f"{f"**{caption}**" if caption is not None else ""}\n> _Original by_ : <@{user.id}>",
+        description=f"{f"**{caption}**" if caption not in {None, ""} else ""}\n> _Original by_ : <@{user.id}>",
     )
     return embed
 
