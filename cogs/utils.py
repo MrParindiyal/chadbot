@@ -37,6 +37,16 @@ class Utility(commands.Cog):
             This instance of bot is running `v{VERSION_INFO}` !\n{WHATS_NEW}
             """)
 
+    @app_commands.command(name="info", description="Get some info and stats")
+    async def info(self, interaction: discord.Interaction):
+        latency_ms = round(self.bot.latency * 1000, 2)
+        await interaction.response.send_message(f"""
+        Latency : {latency_ms} ms [Latency between a HEARTBEAT and a HEARTBEAT_ACK]
+        Version : {VERSION_INFO}
+        Max_upload : {interaction.filesize_limit / (1024*1024)}MB ({interaction.filesize_limit}B)
+        Server_members : {interaction.guild.member_count}
+        """)
+
     @app_commands.command(name="ask", description="Ask questions to the AI underlords")
     @app_commands.describe(text="Type your question here")
     async def ask(self, interaction: discord.Interaction, text: str):

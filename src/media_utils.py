@@ -241,7 +241,7 @@ async def bg_extractor(interaction: discord.Interaction, url: str):
             req_id=interaction.id,
             stop_event=stop_event,
             on_compress_start=notify_compression,
-            timeout=180,
+            timeout=200,
         )
 
         await interaction.edit_original_response(
