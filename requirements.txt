@@ -1,3 +1,4 @@
+aiolimiter
 black
 discord.py
 flask
