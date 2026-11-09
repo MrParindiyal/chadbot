@@ -8,5 +8,6 @@ pillow
 python-dotenv
 ratelimit
 tldextract
-urlextract 
+urlextract
 yt-dlp[default,curl-cffi]
+gallery-dl

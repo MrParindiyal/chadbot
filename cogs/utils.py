@@ -7,7 +7,7 @@ import logging
 from src.__version__ import *
 from src.config import EMOJIS, IGNORE_DOMAINS
 from src.gemini import *
-from src.media_utils import bg_extractor, download_and_compress
+from src.media_utils import bg_extractor, download_and_compress, bg_extractor_insta_post
 from src.utils import create_media_embed, CancelButtonUi, SimpleLinkUi
 import tldextract
 from typing import TYPE_CHECKING
@@ -90,6 +90,13 @@ class Utility(commands.Cog):
         await interaction.response.send_message(content=f":white_check_mark: Queued!")
 
         asyncio.create_task(bg_extractor(interaction, link))
+
+    @app_commands.command(name="insta_post", description="Share posts from Instagram")
+    @app_commands.describe(link="Post link to share")
+    async def insta_post(self, interaction: discord.Interaction, link: str):
+        await interaction.response.send_message(content=f":white_check_mark: Queued!")
+
+        asyncio.create_task(bg_extractor_insta_post(interaction, link))
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
