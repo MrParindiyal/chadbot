@@ -366,7 +366,11 @@ def download_ig_photos(
         url
     ]
     try:
+<<<<<<< HEAD
         logger.debug("Initializing gallery-dl subprocess")
+=======
+        logger.info("Initializing gallery-dl subprocess")
+>>>>>>> e8e99d6 (feat: slash command for insta posts)
         gdl_sys_out = subprocess.run(gdl_download, check=True, capture_output=True)
 
         # gallery-dl returns the downloaded file paths in binary b''
@@ -386,7 +390,11 @@ def download_ig_photos(
             os.path.join(output_dir, f"{uid}_*_{interactionid}*")
         ):
             try:
+<<<<<<< HEAD
                 logger.debug("Removing the cached files if any from the download directory")
+=======
+                logger.info("Removing the cached files if any from the download directory")
+>>>>>>> e8e99d6 (feat: slash command for insta posts)
                 os.remove(part_file)
             except OSError:
                 logger.exception("Could not remove the files")
@@ -413,7 +421,11 @@ async def bg_extractor_insta_post(interaction: discord.Interaction, url: str):
     )
 
     async def notify_compression():
+<<<<<<< HEAD
         logger.debug("Compressing a file")
+=======
+        logger.info("Compressing a file")
+>>>>>>> e8e99d6 (feat: slash command for insta posts)
         await interaction.edit_original_response(
             content=f"{EMOJIS["catJam"]} File too big, compressing... {EMOJIS["loading"]}",
             view=cancel_view,
@@ -421,7 +433,11 @@ async def bg_extractor_insta_post(interaction: discord.Interaction, url: str):
 
     output_files = None
     try:
+<<<<<<< HEAD
         logger.debug("Downloading the instagram post")
+=======
+        logger.info("Downloading the instagram post")
+>>>>>>> e8e99d6 (feat: slash command for insta posts)
         output_files = await download_and_compress_insta_posts(
             url=url,
             uid=interaction.user.id,
@@ -431,12 +447,20 @@ async def bg_extractor_insta_post(interaction: discord.Interaction, url: str):
             timeout=200,
         )
 
+<<<<<<< HEAD
         logger.debug("Preparing attachments for discord embed")
+=======
+        logger.info("Preparing attachments for discord embed")
+>>>>>>> e8e99d6 (feat: slash command for insta posts)
         attachments = [
             discord.File(final_file)
             for final_file, raw_file in output_files
         ]
+<<<<<<< HEAD
         logger.debug("Replacing the original messaage with the attachments")
+=======
+        logger.info("Replacing the original messaage with the attachments")
+>>>>>>> e8e99d6 (feat: slash command for insta posts)
         await interaction.edit_original_response(
             content=None, attachments=attachments, view=SimpleLinkUi(url)
         )
@@ -465,7 +489,11 @@ async def bg_extractor_insta_post(interaction: discord.Interaction, url: str):
         )
 
     finally:
+<<<<<<< HEAD
         logger.debug("Clearing the download directory of the request")
+=======
+        logger.info("Clearing the download directory of the request")
+>>>>>>> e8e99d6 (feat: slash command for insta posts)
         download_directory = f"./data/downloads/raw/gallery_dl/{interaction.user.id}_{interaction.id}"
         shutil.rmtree(download_directory)
 
@@ -537,7 +565,11 @@ async def download_and_compress_insta_posts(
         return output_files
 
     try:
+<<<<<<< HEAD
         logger.debug("Passing through compression pipeline")
+=======
+        logger.info("Passing through compression pipeline")
+>>>>>>> e8e99d6 (feat: slash command for insta posts)
         return await asyncio.wait_for(_pipeline(), timeout=timeout)
     except (asyncio.TimeoutError, asyncio.CancelledError):
         stop_event.set()
