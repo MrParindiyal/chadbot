@@ -1,4 +1,4 @@
-VERSION_INFO = "2.6.1"
+VERSION_INFO = "2.6.2"
 
 WHATS_NEW = """
 - [FEAT] Cancel ongoing download / compression.
