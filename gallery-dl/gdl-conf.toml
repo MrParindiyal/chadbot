@@ -1,0 +1,3 @@
+# Save cookies.txt for instagram in gallery-dl folder
+[extractor.instagram]
+cookies = "./gallery-dl/cookies.txt"

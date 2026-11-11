@@ -8,4 +8,5 @@ test/*
 *.log
 *.log.*
 __config.py
-data/downloads/stage1/
+data/downloads/
+cookies.txt

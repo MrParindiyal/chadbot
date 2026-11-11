@@ -11,6 +11,8 @@ from typing import Callable, Awaitable
 import urllib.parse
 import yt_dlp
 from yt_dlp.utils import DownloadError
+import subprocess
+import shutil
 
 logger = logging.getLogger(__name__)
 
@@ -171,7 +173,7 @@ async def compressor(
             "-bufsize", f"{int(video_bitrate * 1.2 // 1000)}k",
             "-preset", "veryfast",
             "-vf", v_filter,
-            "-threads", "0", 
+            "-threads", "0",
             "-pass", "1",
             "-passlogfile", passlog_prefix,
             "-an", "-f",
@@ -330,4 +332,221 @@ async def download_and_compress(
 
         if raw_file and os.path.exists(raw_file):
             os.remove(raw_file)
+        raise
+
+# ============================ #
+# CODE BLOCK FOR INSTA POSTS
+# ============================ #
+def download_ig_photos(
+    url: str,
+    uid: int,
+    interactionid: int,
+    stop_event: asyncio.Event | None,
+    output_dir: str = "./data/downloads/raw/gallery_dl"
+) -> dict:
+
+    os.makedirs(output_dir, exist_ok=True)
+    parsed_url = urllib.parse.urlparse(url)
+    query_param = urllib.parse.parse_qs(parsed_url.query)
+    target_index = query_param.get("img_index", [""])[0]
+
+    def _cancel_hook(d):
+        if stop_event and stop_event.is_set():
+            raise DownloadError("ABORTED_BY_USER")
+
+    # the media_id and extension are filled up by gallery-dl's extractor for instagram
+    filename_template = f"{uid}_" + "{media_id}" + f"_{interactionid}" + ".{extension}"
+    output_dir = f"./data/downloads/raw/gallery_dl/{uid}_{interactionid}"
+    gdl_download = [
+        "gallery-dl",
+        "--filename", filename_template,
+        "--range", target_index,
+        "--config-toml", "./gallery-dl/gdl-conf.toml",
+        "--directory", output_dir,
+        url
+    ]
+    try:
+        logger.debug("Initializing gallery-dl subprocess")
+        gdl_sys_out = subprocess.run(gdl_download, check=True, capture_output=True)
+
+        # gallery-dl returns the downloaded file paths in binary b''
+        # cleaning the output for return statement
+        filenames = [
+            line.decode('UTF-8').lstrip('# ') for line in gdl_sys_out.stdout.splitlines()
+        ]
+
+        return {
+            "success": True,
+            "file_paths": filenames
+        }
+
+    except Exception as e:
+        logger.exception("Exception raised while downloading insta post")
+        for part_file in glob.glob(
+            os.path.join(output_dir, f"{uid}_*_{interactionid}*")
+        ):
+            try:
+                logger.debug("Removing the cached files if any from the download directory")
+                os.remove(part_file)
+            except OSError:
+                logger.exception("Could not remove the files")
+
+        if "ABORTED_BY_USER" in str(e):
+            return {
+                "success": False,
+                "aborted": True,
+                "error": "Aborted by user"
+            }
+
+        return {
+            "success": False,
+            "aborted": False,
+            "error": str(e)
+        }
+
+async def bg_extractor_insta_post(interaction: discord.Interaction, url: str):
+    stop_event = asyncio.Event()
+    cancel_view = CancelButtonUi(interaction.user.id, stop_event, url)
+
+    await interaction.edit_original_response(
+        content=f"{EMOJIS["loading"]} Downloading request...", view=cancel_view
+    )
+
+    async def notify_compression():
+        logger.debug("Compressing a file")
+        await interaction.edit_original_response(
+            content=f"{EMOJIS["catJam"]} File too big, compressing... {EMOJIS["loading"]}",
+            view=cancel_view,
+        )
+
+    output_files = None
+    try:
+        logger.debug("Downloading the instagram post")
+        output_files = await download_and_compress_insta_posts(
+            url=url,
+            uid=interaction.user.id,
+            req_id=interaction.id,
+            stop_event=stop_event,
+            on_compress_start=notify_compression,
+            timeout=200,
+        )
+
+        logger.debug("Preparing attachments for discord embed")
+        attachments = [
+            discord.File(final_file)
+            for final_file, raw_file in output_files
+        ]
+        logger.debug("Replacing the original messaage with the attachments")
+        await interaction.edit_original_response(
+            content=None, attachments=attachments, view=SimpleLinkUi(url)
+        )
+
+    except asyncio.CancelledError:
+        logger.warning(
+            f"Task aborted! By @{interaction.user.display_name} in {interaction.guild.name} #{interaction.channel.name}"
+        )
+        await interaction.edit_original_response(
+            content=f":warning: Task aborted by user.",
+            view=SimpleLinkUi(url),
+        )
+
+    except asyncio.TimeoutError:
+        logger.warning(
+            f"Compressor timed out! {url} by @{interaction.user.display_name} in {interaction.guild.name} #{interaction.channel.name}"
+        )
+        await interaction.edit_original_response(
+            content=f":x: Compressor timed out", view=SimpleLinkUi(url)
+        )
+
+    except Exception as e:
+        logger.exception(f"Failed to send the file. {str(e)[:100]}")
+        await interaction.edit_original_response(
+            content=f":x: Processing Failed :( {str(e)[:75]}", view=SimpleLinkUi(url)
+        )
+
+    finally:
+        logger.debug("Clearing the download directory of the request")
+        download_directory = f"./data/downloads/raw/gallery_dl/{interaction.user.id}_{interaction.id}"
+        shutil.rmtree(download_directory)
+
+async def download_and_compress_insta_posts(
+    url: str,
+    uid: int,
+    req_id: int,
+    stop_event: asyncio.Event,
+    on_compress_start: Callable[[], Awaitable[None]],
+    timeout: float = 200,
+) -> list[tuple[str, str]]:
+    output_files = []
+
+    async def _pipeline():
+        nonlocal output_files
+
+        result = await asyncio.to_thread(
+            download_ig_photos, url, uid, req_id, stop_event
+        )
+
+        if result.get("aborted") or stop_event.is_set():
+            raise asyncio.CancelledError("Download aborted by user")
+
+        if not result["success"]:
+            raise RuntimeError(result["error"])
+
+        raw_files = result["file_paths"]
+
+        # compression flag to notify only once
+        compression_needed = False
+        DISCORD_UPLOAD_LIMIT = 20
+
+        for raw_file in raw_files:
+            file_size = os.path.getsize(raw_file) / (1024 * 1024)
+
+            # if file size less than discord
+            if file_size < DISCORD_UPLOAD_LIMIT:
+                output_files.append((raw_file, raw_file))
+
+            # compress the file otherwise
+            else:
+                if not compression_needed:
+                    await on_compress_start()
+                    compression_needed = True
+
+                file_name = "_".join(
+                            str(os.path.basename(raw_file)).split("_")[1:-1]
+                        )
+                file_ext = os.path.splitext(raw_file)[1].lower().lstrip(".")
+                output_file_path = (
+                    f"./data/downloads/compressed/gallery_dl/{uid}_{req_id}/" +
+                    f"{uid}_{file_name}.compressed_{req_id}" +
+                    f".{file_ext}"
+                )
+
+                # use existing compression algorithm for video file
+                if file_ext in {"mp4", "mkv", "webm", "mov"}:
+                    compressed_file = await compressor(
+                        raw_file, output_file=output_file_path, stop_event=stop_event
+                    )
+
+                    output_files.append((compressed_file, raw_file))
+                # if by any chance image size > DISCORD_UPLOAD_LIMIT, do not compress
+                # ostrich algorithm goes brrrr...
+                else:
+                    logger.error(f"Image file size > 20, for url: {url}")
+                    output_files.append((raw_file, raw_file))
+
+        return output_files
+
+    try:
+        logger.debug("Passing through compression pipeline")
+        return await asyncio.wait_for(_pipeline(), timeout=timeout)
+    except (asyncio.TimeoutError, asyncio.CancelledError):
+        stop_event.set()
+
+        # Remove raw and compressed files in case of failure
+        if output_files and os.path.exists(f"./data/downloads/raw/gallery_dl/{uid}_{req_id}"):
+            shutil.rmtree(f"./data/downloads/raw/gallery_dl/{uid}_{req_id}")
+            os.rmdir(f"./data/downloads/raw/gallery_dl/{uid}_{req_id}")
+        if os.path.exists(f"./data/downloads/compressed/gallery_dl/{uid}_{req_id}"):
+            shutil.rmtree(f"./data/downloads/compressed/gallery_dl/{uid}_{req_id}")
+            os.rmdir(f"./data/downloads/compressed/gallery_dl/{uid}_{req_id}")
         raise

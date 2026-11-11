@@ -81,6 +81,9 @@ class CustomBot(commands.Bot):
             if filename.endswith(".py") and not filename.startswith("__"):
                 await self.load_extension(f"cogs.{filename[:-3]}")
         logger.info("Syncing slash commands...")
+        # make gallery-dl command optional
+        if os.getenv("DISABLE_GALLERY_DL", "false").lower() == "true":
+            self.tree.remove_command("insta_post")
         synced = await self.tree.sync()
         logger.info(f"Synced {len(synced)} command(s).")
 
